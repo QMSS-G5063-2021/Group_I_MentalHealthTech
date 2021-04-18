@@ -1,0 +1,192 @@
+---
+title: "DV Final Project - Text Analysis"
+author: "Renyuan Chen"
+date: "2021/4/16"
+output: 
+  html_document:
+    df_print: paged
+---
+
+```{r packages, message=FALSE, warning=FALSE}
+#load packages
+library(plotly)
+library(quanteda)
+library(wordcloud)
+library(wordcloud2)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tm)
+library(tidytext)
+library(patchwork)
+library(SnowballC)
+```
+
+```{r data, message=FALSE, warning=FALSE}
+#import data
+mental_health <- read_csv("D:/QMSS 2021 SPRING/DV/final project/mental-heath-in-tech-2016_20161114.csv")
+head(mental_health[37:38])
+
+names(mental_health)[37:38] <- c("menissue_interview","text")
+mental_health <- filter(mental_health, !is.na(text)) 
+menissue_interview <- as.data.frame(table(mental_health$menissue_interview)) 
+names(menissue_interview) <- c("Would you bring up a mental health issue with a potential employer in an interview?", "Frequency")
+menissue_interview
+```
+##### Wordcloud for answer=Maybe
+
+```{r wordcloud maybe, message=FALSE, warning=FALSE}
+#answer = maybe
+#create corpus
+mental_health_maybe <- filter(mental_health, menissue_interview == "Maybe")
+mental_health_maybe$doc_id <- as.character(c(1:nrow(mental_health_maybe)))
+mental_health_maybe <- mental_health_maybe[, c(62,38)]
+maybe_corpus <- DataframeSource(mental_health_maybe) %>% VCorpus(.)
+#clean corpus
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, c("mental", "health", "interview", "feel", "bring", "want", "made", "get", "employer", "hire", "need", "know", "may", "affect", "job", stopwords("en")))
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, stripWhitespace)
+  return(corpus)
+}
+maybe_clean <- clean_corpus(maybe_corpus)
+#stem and stem completion
+stemCompletion2 <- function(x, dictionary) {
+   x <- unlist(strsplit(as.character(x), " "))
+   x <- x[x != ""]
+   x <- stemCompletion(x, dictionary=dictionary)
+   x <- paste(x, sep="", collapse=" ")
+   stripWhitespace(x)
+}
+maybe_stemmed <- tm_map(maybe_clean, stemDocument)
+maybe_compl <- lapply(maybe_stemmed, stemCompletion2, dictionary = maybe_clean) %>% VectorSource() %>% Corpus()
+#word cloud
+maybe_tdm <- TermDocumentMatrix(maybe_compl)
+maybe_tf_idf <- tidy(maybe_tdm)  %>%
+  bind_tf_idf(term, document, count) %>%
+  arrange(desc(tf_idf))
+set.seed(1000)
+wordcloud2(maybe_tf_idf[, c(1,4)], color = "random-dark", shape = "diamond")
+```
+
+##### Wordcloud for answer=Yes
+
+```{r wordcloud yes, message=FALSE, warning=FALSE}
+#answer = yes
+#create corpus and clean
+mental_health_yes <- filter(mental_health, menissue_interview == "Yes")
+mental_health_yes$doc_id <- as.character(c(1:nrow(mental_health_yes)))
+mental_health_yes <- mental_health_yes[, c(62,38)]
+yes_corpus <- DataframeSource(mental_health_yes) %>% VCorpus(.)
+yes_clean <- clean_corpus(yes_corpus)
+#stem and stem completion
+yes_stemmed <- tm_map(yes_clean, stemDocument)
+yes_compl <- lapply(yes_stemmed, stemCompletion2, dictionary = yes_clean) %>% VectorSource() %>% Corpus()
+#word cloud
+yes_tdm <- TermDocumentMatrix(yes_compl)
+yes_tf_idf <- tidy(yes_tdm)  %>%
+  bind_tf_idf(term, document, count) %>%
+  arrange(desc(tf_idf))
+set.seed(1000)
+wordcloud2(yes_tf_idf[, c(1,4)], color = "random-dark", shape = "diamond")
+```
+
+##### Wordcloud for answer=No
+
+```{r wordcloud no, message=FALSE, warning=FALSE}
+#answer = no
+#create corpus and clean
+mental_health_no <- filter(mental_health, menissue_interview == "No")
+mental_health_no$doc_id <- as.character(c(1:nrow(mental_health_no)))
+mental_health_no <- mental_health_no[, c(62,38)]
+no_corpus <- DataframeSource(mental_health_no) %>% VCorpus(.)
+no_clean <- clean_corpus(no_corpus)
+#stem and stem completion
+no_stemmed <- tm_map(no_clean, stemDocument)
+no_compl <- lapply(no_stemmed, stemCompletion2, dictionary = no_clean) %>% VectorSource() %>% Corpus()
+#word cloud
+no_tdm <- TermDocumentMatrix(no_compl)
+no_tf_idf <- tidy(no_tdm)  %>%
+  bind_tf_idf(term, document, count) %>%
+  arrange(desc(tf_idf))
+set.seed(1000)
+wordcloud2(no_tf_idf[, c(1,4)], color = "random-dark", shape = "diamond")
+```
+
+##### Word Frequency for Each Answer
+
+```{r frequency, message=FALSE, warning=FALSE}
+#top 10 words in maybe
+b1 <- maybe_tf_idf %>% group_by(term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=10) %>% 
+  ggplot(aes(reorder(term, frequency), frequency)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  ggtitle("Answer = Maybe") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(), 
+        plot.title = element_text(face = "bold", color = "black", size = 10))
+
+#top 10 words in yes
+b2 <- yes_tf_idf %>% group_by(term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=10) %>% 
+  ggplot(aes(reorder(term, frequency), frequency)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  ggtitle("Answer = Yes") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(), 
+        plot.title = element_text(face = "bold", color = "black", size = 10))
+#top 10 words in no
+b3 <- no_tf_idf %>% group_by(term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=10) %>% 
+  ggplot(aes(reorder(term, frequency), frequency)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  ggtitle("Answer = No") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(), 
+        plot.title = element_text(face = "bold", color = "black", size = 10))
+b1+b2+b3
+```
+
+Participants who answered maybe tended to use uncertain words like depends and discuss, but they also used some negative words such as stigma and wouldn't. Those who answered yes tended to use positive words like important and good while those answering no used negative words such as stigma, don't, wouldn't and negatively. 
+
+##### Sentiment Analysis for Each Answer
+
+```{r sentiment, message=FALSE, warning=FALSE}
+#import Hu & Liu Dictionary
+pos <- read.table("D:/QMSS 2021 SPRING/DV/course_content4/Lectures/Week09/data/dictionaries/positive-words.txt", as.is=T)
+neg <- read.table("D:/QMSS 2021 SPRING/DV/course_content4/Lectures/Week09/data/dictionaries/negative-words.txt", as.is=T)
+#define sentiment fuction
+sentiment <- function(words){
+  tok <- quanteda::tokens(words)
+  pos.count <- sum(tok[[1]]%in%pos[,1])
+  neg.count <- sum(tok[[1]]%in%neg[,1])
+  out <- (pos.count - neg.count)/(pos.count+neg.count)
+  return(out)
+}
+#calculate the sentiment
+mental_health$sentiment <- sapply(mental_health$text, sentiment)
+
+#plot the relationship between sentiment and answer
+p1 <- ggplot(mental_health, aes(x = menissue_interview, y = sentiment)) + 
+  geom_boxplot(aes(fill=menissue_interview))  + 
+  stat_summary(mapping=aes(group=menissue_interview),fun="mean",geom="point",shape=23,size=3,fill="white") + 
+  labs(title = "Distribution of Sentiment Score by Answer", y = "Sentiment Score") + 
+  theme(legend.position = 'none', 
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(vjust = 2),
+        panel.background = element_blank(), 
+        panel.grid.major = element_line(color = "gray50", size = 0.5),
+        panel.grid.major.x = element_blank(),
+        plot.title = element_text(face = "bold", color = "black", size = 12))
+ggplotly(p1, tooltip = "sentiment")
+```
+
+In sum, respondents who answered maybe showed a negative sentiment towards the question with mean score -0.41 and median score -1. Compared with them, those answering no showed a more negative sentiment with mean score -0.43 and median score -1. However, those with answer yes presented a totally different sentiment. They got an average sentiment score of 0.21 and median score of 0.17.
+
+
+
