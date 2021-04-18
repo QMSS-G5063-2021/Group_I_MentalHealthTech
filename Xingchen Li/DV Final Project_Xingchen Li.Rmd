@@ -1,0 +1,144 @@
+---
+title: "DV Final Project_Xingchen Li"
+author: "Xingchen Li"
+date: "2021/4/18"
+output: 
+  html_document:
+    toc: true
+    # self_contained: true
+    keep_md: true
+font-family: Times 
+subtitle: Data Visualization - Columbia University
+autosize: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+
+library(dplyr)
+library(forcats)
+library(ggplot2)
+library(data.table)
+library(ggpubr)
+setwd("C:/Users/Admin/Desktop")
+mental <- read.csv('mental-heath-in-tech-2016_20161114.csv', header = TRUE,encoding = "UTF-8")
+```
+
+
+```{r}
+head(arrange(plyr::count(mental, 'What.is.your.gender.'),desc(freq)),20)
+#arrange gender column
+mental$What.is.your.gender.[mental$What.is.your.gender. == "male"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "M"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "m"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Male "] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Male (cis)"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "female"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Female "] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "F"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "f"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "woman"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Woman"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "female "] <- "Female"
+mental <- mental %>% filter(What.is.your.gender.== "Male" | What.is.your.gender.== "Female")
+setnames(mental, "What.is.your.gender.", "gender")
+arrange(plyr::count(mental, 'gender'),desc(freq))
+```
+
+
+
+```{r}
+#change names
+setnames(mental, "Did.you.hear.of.or.observe.negative.consequences.for.co.workers.with.mental.health.issues.in.your.previous.workplaces.", "consequences_coworkers")
+mental <- mental %>% filter(consequences_coworkers!="")
+setnames(mental, "Would.you.bring.up.a.mental.health.issue.with.a.potential.employer.in.an.interview.", "bringup_issue")
+setnames(mental, "Do.you.feel.that.being.identified.as.a.person.with.a.mental.health.issue.would.hurt.your.career.", "mental_hurt_career")
+setnames(mental,"Do.you.think.that.team.members.co.workers.would.view.you.more.negatively.if.they.knew.you.suffered.from.a.mental.health.issue.","coworker_views")
+setnames(mental,"How.many.employees.does.your.company.or.organization.have.","company_size")
+setnames(mental,"What.is.your.age.","age")
+```
+
+
+
+
+```{r}
+arrange(plyr::count(mental, 'gender'),desc(freq))
+arrange(plyr::count(mental$'consequences_coworkers'),desc(freq))
+arrange(plyr::count(mental$'bringup_issue'),desc(freq))
+arrange(plyr::count(mental$'mental_hurt_career'),desc(freq))
+arrange(plyr::count(mental$'coworker_views'),desc(freq))
+mental <-mental %>% filter(age!=323)#delete error
+arrange(plyr::count(mental$'age'),desc(x))
+mental$company_size[mental$company_size == "6.25"] <- "6-25"
+mental$company_size[mental$company_size == "1.5"] <- "1-5"
+mental <- mental %>% filter(company_size!="")#delete blank value
+mental <- mental %>% mutate(company_size = fct_relevel(company_size, 
+            "1-5", "6-25", "26-100", 
+            "100-500", "500-1000", "More than 1000"))#reorder the company size
+plyr::count(mental$'company_size')
+```
+
+```{r}
+mental1 <- mental %>% filter(gender == 'Male')%>%
+          dplyr::group_by(company_size,gender, bringup_issue) %>%
+          dplyr::summarise(frequency=n())%>%
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental2 <- mental %>% filter(gender == 'Female')%>%
+          dplyr::group_by(company_size,gender, bringup_issue) %>%
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental3 <- rbind(mental1, mental2)
+fig<- ggballoonplot(mental3, y = "company_size", x = "bringup_issue", fill = "frequency", size="frequency",
+             facet.by = "gender", ggtheme = theme_bw())+
+  scale_fill_viridis_c(option = "C")
+fig <-  ggpar(fig,main = "Company size & Whether you will bring up mental issue during interviews", xlab = "Dose (mg)", ylab = "Company size")
+fig
+```
+
+```{r}
+mental4 <- mental %>% filter(gender == 'Male')%>%
+          dplyr::group_by(company_size,gender, mental_hurt_career) %>%
+          dplyr::summarise(frequency=n())%>%
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental5 <- mental %>% filter(gender == 'Female')%>%
+          dplyr::group_by(company_size,gender, mental_hurt_career) %>%
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental6 <- rbind(mental4, mental5)
+fig2<- ggballoonplot(mental6, y = "company_size", x = "mental_hurt_career", fill = "frequency", size="frequency",
+             facet.by = "gender", ggtheme = theme_bw())+
+  scale_fill_viridis_c(option = "C")
+fig2 <-  ggpar(fig2,main = "Company size & Whether mental health issue would hurt your career", xlab = "Answer", ylab = "Company size")
+
+fig2
+
+```
+
+
+```{r}
+mental7 <- mental %>% filter(gender == 'Male')%>%
+          dplyr::group_by(company_size,gender, coworker_views) %>%
+          dplyr::summarise(frequency=n())%>%
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental8 <- mental %>% filter(gender == 'Female')%>%
+          dplyr::group_by(company_size,gender, coworker_views) %>%
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental9 <- rbind(mental7, mental8)
+fig3<- ggballoonplot(mental9, y = "company_size", x = "coworker_views", fill = "frequency", size="frequency",
+             facet.by = "gender", ggtheme = theme_bw())+
+  scale_fill_viridis_c(option = "C")
+fig3 <-  ggpar(fig3,main = "Company size & Whether coworkers will view you more negatively", xlab = "Answer", ylab = "Company size")
+fig3
+```
+
+
