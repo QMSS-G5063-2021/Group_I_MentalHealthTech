@@ -248,7 +248,7 @@ states@data <- combined
 #### **Frequency of Employee Who Sought Mental Health Treatment**
 ```{r}
 bins <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
-pal <- colorBin("YlOrRd", domain = states$treatment_prec, bins = bins, right=TRUE)
+pal <- colorBin("YlOrRd", domain = states$treatment_prec, bins = bins)
 labels_states <- paste( states$NAME,
                     "Employee Sougnt Treatment Frequency:", states$treatment_prec)
 
