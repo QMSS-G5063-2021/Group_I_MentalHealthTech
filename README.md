@@ -6,7 +6,7 @@ Team Members: Yuting Mei (ym2741@columbia.edu), Renyuan Chen (rc3373@columbia.ed
 
 In this project, our group wants to gauge the prevalence of certain mental health disorders within the tech industry, and how mental health is viewed within the tech/IT workplace. We used dataset from 2016 OSMI Mental Health in Tech Survey and intended to provided answers to the questions below. 
 1. How do people across genders and ages perform differently in mental health conditions？
-2. How does mental health treatment and mental health benefit differentiate among states in the US based on the response frequency? Can they be presented by map?
+2. How do mental health treatment and mental health services benefit differentiate among states in the US based on the response frequency? Can they be presented by map?
 3. How do people among different job types, company sizes and genders respond to mental health questions?
 4. What are people’s attitudes towards mental health in workplace? Can they be presented by wordcloud in positive or negative way?
 
