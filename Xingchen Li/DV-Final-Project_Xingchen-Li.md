@@ -21,6 +21,7 @@ library(forcats)
 library(ggplot2)
 library(data.table)
 library(ggpubr)
+library(patchwork)
 setwd("C:/Users/Admin/Desktop")
 mental <- read.csv('mental-heath-in-tech-2016_20161114.csv', header = TRUE,encoding = "UTF-8")
 ```
@@ -255,7 +256,7 @@ mental2 <- mental %>% filter(gender == 'Female')%>%
 mental3 <- rbind(mental1, mental2)
 fig<- ggballoonplot(mental3, y = "company_size", x = "bringup_issue", size="frequency",fill = "frequency",
              facet.by = "gender", ggtheme = theme_bw())+
-  scale_fill_viridis_c(option = "C")
+  scale_fill_viridis_c(option = "D",direction = -1)
 fig <-  ggpar(fig,main = "Company size & Whether you will bring up mental issue during interviews", xlab = "Answer", ylab = "Company size")
 fig
 ```
@@ -289,7 +290,7 @@ mental5 <- mental %>% filter(gender == 'Female')%>%
 mental6 <- rbind(mental4, mental5)
 fig2<- ggballoonplot(mental6, y = "company_size", x = "mental_hurt_career", fill = "frequency", size="frequency",
              facet.by = "gender", ggtheme = theme_bw())+
-  scale_fill_viridis_c(option = "C")
+  scale_fill_viridis_c(option = "D",direction = -1)
 fig2 <-  ggpar(fig2,main = "Company size & Whether mental health issue would hurt your career", xlab = "Answer", ylab = "Company size")
 
 fig2
@@ -323,9 +324,10 @@ mental8 <- mental %>% filter(gender == 'Female')%>%
 
 ```r
 mental9 <- rbind(mental7, mental8)
+
 fig3<- ggballoonplot(mental9, y = "company_size", x = "coworker_views", fill = "frequency", size="frequency",
              facet.by = "gender", ggtheme = theme_bw())+
-  scale_fill_viridis_c(option = "C")
+  scale_fill_viridis_c(option = "D",direction = -1)
 fig3 <-  ggpar(fig3,main = "Company size & Whether coworkers will view you more negatively", xlab = "Answer", ylab = "Company size")
 fig3
 ```
@@ -355,7 +357,11 @@ library(viridis)
 
 ```r
 setnames(mental,"Which.of.the.following.best.describes.your.work.position.","work_position_general")
+```
 
+
+
+```r
 work_position <- mental$work_position_general
 work_position <- word(work_position,1,sep = "\\|")
 work_position <- as.data.frame(work_position)
@@ -379,56 +385,65 @@ arrange(plyr::count(mental, 'work_position'),desc(freq))
 ## 12                   Sales    1
 ```
 
-```r
-#arrange by job types
-mental_wp_back <- mental %>% dplyr::filter(work_position== "Back-end Developer") %>% dplyr::select(mental_hurt_career, work_position)
-back <- table(mental_wp_back$mental_hurt_career)
-back_w <- waffle(back, rows = 12, xlab="Whether mental health issue would hurt your career",colors = viridis::viridis(5),reverse=TRUE) +
-  ggtitle("Back-end Developer")
-back_w
-```
 
-![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-1.png)<!-- -->
 
 ```r
-mental_wp_front <- mental%>% dplyr::filter(work_position== "Front-end Developer") %>% dplyr::select(mental_hurt_career, work_position)                
-front <- table(mental_wp_front$mental_hurt_career)
-front_w <- waffle(front, rows = 10, xlab="Whether mental health issue would hurt your career",colors = viridis::viridis(5),reverse=TRUE)+
-  ggtitle("Front-end Developer")
-front_w
+#arrange by job types 
+mental_wp_back <- mental %>% dplyr::filter(work_position== "Back-end Developer") %>% dplyr::select(mental_hurt_career, work_position) 
+back <- table(mental_wp_back$mental_hurt_career) 
+back_w <- waffle(back, rows = 12, 
+                 #xlab="Whether mental health issue would hurt your career",
+                 colors = viridis::viridis(5),reverse=TRUE) + 
+  labs(title = "Back-end Developer") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+ 
+mental_wp_front <- mental%>% dplyr::filter(work_position== "Front-end Developer") %>% dplyr::select(mental_hurt_career, work_position)                 
+front <- table(mental_wp_front$mental_hurt_career) 
+front_w <- waffle(front, rows = 10, 
+                  #xlab="Whether mental health issue would hurt your career",
+                  colors = viridis::viridis(5),reverse=TRUE)+ 
+  labs(title = "Front-end Developer") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+ 
+mental_wp_lead <- mental %>% dplyr::filter(work_position== "Supervisor/Team Lead")%>% dplyr::select(mental_hurt_career, work_position) 
+lead <- table(mental_wp_lead$mental_hurt_career) 
+lead_w <- waffle(lead, rows = 10, 
+                 #xlab="Whether mental health issue would hurt your career",
+                 colors = viridis::viridis(5),reverse=TRUE)+ 
+  labs(title = "Supervisor/Team Lead") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+ 
+mental_wp_devops <- mental %>% dplyr::filter(work_position== "DevOps/SysAdmin")%>% dplyr::select(mental_hurt_career, work_position) 
+devops<- table(mental_wp_devops$mental_hurt_career) 
+devops_w <- waffle(devops, rows = 10, 
+                   #xlab="Whether mental health issue would hurt your career",
+                   colors = viridis::viridis(4),reverse=TRUE)+ 
+  labs(title = "DevOps/SysAdmin") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+ 
+mental_wp_advocate <- mental %>% dplyr::filter(work_position== "Dev Evangelist/Advocate")%>% dplyr::select(mental_hurt_career, work_position) 
+advocate<- table(mental_wp_advocate$mental_hurt_career) 
+advocate_w <- waffle(advocate, rows = 10, 
+                     #xlab="Whether mental health issue would hurt your career",
+                     colors = viridis::viridis(5),reverse=TRUE)+ 
+  labs(title = "Dev Evangelist/Advocate") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+
+mental_wp_support <- mental %>% dplyr::filter(work_position== "Support")%>% dplyr::select(mental_hurt_career, work_position) 
+support<- table(mental_wp_support$mental_hurt_career) 
+support_w <- waffle(support, rows = 10, 
+                     #xlab="Whether mental health issue would hurt your career",
+                     colors = viridis::viridis(4),reverse=TRUE)+ 
+  labs(title = "Support") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+
+back_w + lead_w+ front_w + devops_w + advocate_w + support_w + plot_layout(nrow =3, byrow = FALSE) + plot_annotation('Survey: Whether mental health issue would hurt your career')
 ```
 
-![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-2.png)<!-- -->
+![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
 
-```r
-mental_wp_lead <- mental %>% dplyr::filter(work_position== "Supervisor/Team Lead")%>% dplyr::select(mental_hurt_career, work_position)
-lead <- table(mental_wp_lead$mental_hurt_career)
-lead_w <- waffle(lead, rows = 10, xlab="Whether mental health issue would hurt your career",colors = viridis::viridis(5),reverse=TRUE)+
-  ggtitle("Supervisor/Team Lead")
-lead_w
-```
-
-![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-3.png)<!-- -->
-
-```r
-mental_wp_devops <- mental %>% dplyr::filter(work_position== "DevOps/SysAdmin")%>% dplyr::select(mental_hurt_career, work_position)
-devops<- table(mental_wp_devops$mental_hurt_career)
-devops_w <- waffle(devops, rows = 10, xlab="Whether mental health issue would hurt your career",colors = viridis::viridis(4),reverse=TRUE)+
-  ggtitle("DevOps/SysAdmin")
-devops_w 
-```
-
-![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-4.png)<!-- -->
-
-```r
-mental_wp_advocate <- mental %>% dplyr::filter(work_position== "Dev Evangelist/Advocate")%>% dplyr::select(mental_hurt_career, work_position)
-advocate<- table(mental_wp_advocate$mental_hurt_career)
-advocate_w <- waffle(advocate, rows = 10, xlab="Whether mental health issue would hurt your career",colors = viridis::viridis(5),reverse=TRUE)+
-  ggtitle("Dev Evangelist/Advocate")
-advocate_w
-```
-
-![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-5.png)<!-- -->
 
 
 
