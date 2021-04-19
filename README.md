@@ -1,6 +1,6 @@
 # Group_I_MentalHealthTech
 
-Team Members: Yuting Mei (ym2741@columbia.edu), Renyuan Chen(rc3373@columbia.edu), Xingchen Li(xl3005@columbia.edu), Shanxiao Wan(sw3510@columbia.edu)
+Team Members: Yuting Mei (ym2741@columbia.edu), Renyuan Chen (rc3373@columbia.edu), Xingchen Li (xl3005@columbia.edu), Shanxiao Wan (sw3510@columbia.edu)
 
 **Goal**
 
