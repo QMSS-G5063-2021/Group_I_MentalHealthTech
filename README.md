@@ -12,6 +12,7 @@ Currently over 1400 responses, the ongoing 2016 survey aims to measure attitudes
 Source: https://www.kaggle.com/osmi/mental-health-in-tech-2016
 
 **Project Quick Overview**
+
 Link: https://rpubs.com/XingchenLi/final_project_visualization
 
 **Presentation**
