@@ -95,9 +95,6 @@ setnames(mental,"What.is.your.age.","age")
 ```
 
 
-
-
-
 ```r
 arrange(plyr::count(mental, 'gender'),desc(freq))
 ```
@@ -336,3 +333,91 @@ fig3
 ![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
 
 
+
+Waffle Chart Based on Work Positions
+
+```r
+library(stringr)
+setnames(mental,"Which.of.the.following.best.describes.your.work.position.","work_position_general")
+work_position <- mental$work_position_general
+work_position <- word(work_position,1,sep = "\\|")
+work_position <- as.data.frame(work_position)
+mental <- cbind(mental, work_position)
+arrange(plyr::count(mental, 'work_position'),desc(freq))
+```
+
+```
+##              work_position freq
+## 1       Back-end Developer  164
+## 2     Supervisor/Team Lead  102
+## 3      Front-end Developer   86
+## 4                    Other   81
+## 5          DevOps/SysAdmin   71
+## 6  Dev Evangelist/Advocate   36
+## 7                  Support   34
+## 8     Executive Leadership   23
+## 9                 Designer    9
+## 10         One-person shop    2
+## 11                      HR    1
+## 12                   Sales    1
+```
+
+```r
+#mental_wp <- mental  %>% filter(work_position== "Back-end Developer" | work_position== "Supervisor/Team Lead" | work_position== "Front-end Developer") %>%               dplyr::select(bringup_issue, work_position)
+library(waffle)
+```
+
+```
+## Warning: package 'waffle' was built under R version 4.0.5
+```
+
+```r
+mental_wp_back <- mental %>% dplyr::filter(work_position== "Back-end Developer") %>% dplyr::select(bringup_issue, work_position)
+back <- table(mental_wp_back$bringup_issue)
+back_w <- waffle(back, rows = 12, colors = c("lightgrey", "gray48", "red"), xlab="Whether you will bring up mental issue during interviews", reverse = TRUE) +
+  ggtitle("Back-end Developer")
+back_w
+```
+
+![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-1.png)<!-- -->
+
+```r
+mental_wp_front <- mental%>% dplyr::filter(work_position== "Front-end Developer") %>% dplyr::select(bringup_issue, work_position)                
+front <- table(mental_wp_front$bringup_issue)
+front_w <- waffle(front, rows = 10, colors = c("lightgrey", "gray48", "red"), xlab="Whether you will bring up mental issue during interviews", reverse = TRUE)+
+  ggtitle("Front-end Developer")
+front_w
+```
+
+![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-2.png)<!-- -->
+
+```r
+mental_wp_lead <- mental %>% dplyr::filter(work_position== "Supervisor/Team Lead")%>% dplyr::select(bringup_issue, work_position)
+lead <- table(mental_wp_lead$bringup_issue)
+lead_w <- waffle(lead, rows = 10, colors = c("lightgrey", "gray48", "red"), xlab="Whether you will bring up mental issue during interviews", reverse = TRUE)+
+  ggtitle("Supervisor/Team Lead")
+lead_w
+```
+
+![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-3.png)<!-- -->
+
+```r
+mental_wp_devops <- mental %>% dplyr::filter(work_position== "DevOps/SysAdmin")%>% dplyr::select(bringup_issue, work_position)
+devops<- table(mental_wp_devops$bringup_issue)
+devops_w <- waffle(devops, rows = 10, colors = c("lightgrey", "gray48", "red"), xlab="Whether you will bring up mental issue during interviews", reverse = TRUE)+
+  ggtitle("DevOps/SysAdmin")
+
+devops_w 
+```
+
+![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-4.png)<!-- -->
+
+```r
+mental_wp_advocate <- mental %>% dplyr::filter(work_position== "Dev Evangelist/Advocate")%>% dplyr::select(bringup_issue, work_position)
+advocate<- table(mental_wp_advocate$bringup_issue)
+advocate_w <- waffle(advocate, rows = 10, colors = c("lightgrey", "gray48", "red"), xlab="Whether you will bring up mental issue during interviews", reverse = TRUE)+
+  ggtitle("Dev Evangelist/Advocate")
+advocate_w
+```
+
+![](DV-Final-Project_Xingchen-Li_files/figure-html/unnamed-chunk-8-5.png)<!-- -->
