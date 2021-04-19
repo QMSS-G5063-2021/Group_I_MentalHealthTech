@@ -20,11 +20,11 @@ Source: https://www.kaggle.com/osmi/mental-health-in-tech-2016
 
 Link: https://rpubs.com/XingchenLi/final_project_visualization
 
-**Presentation**
+**Presentation Video**
 
 Link: https://youtu.be/uo-VyCP-BW8
 
-**Process Book Quick View (Download-free)**
+**Process Book Quick View**
 
 Link: https://yvyyefidhh.feishu.cn/docs/doccnVLHbcoZbM98Tfzu1DaQwkb
 
