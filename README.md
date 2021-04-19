@@ -2,7 +2,9 @@
 
 Team Members: Yuting Mei (ym2741@columbia.edu), Renyuan Chen(rc3373@columbia.edu), Xingchen Li(xl3005@columbia.edu), Shanxiao Wan(sw3510@columbia.edu)
 
-Description: Analysis of Mental Health in Tech Workplace
+**Goal**
+
+In this project, our group wants to gauge the prevalence of certain mental health disorders within the tech industry, and how mental health is viewed within the tech/IT workplace. We used dataset from 2016 OSMI Mental Health in Tech Survey.
 
 **Data Description**
 
