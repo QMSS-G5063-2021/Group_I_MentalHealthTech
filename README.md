@@ -24,4 +24,9 @@ Link: https://rpubs.com/XingchenLi/final_project_visualization
 
 Link: https://youtu.be/uo-VyCP-BW8
 
+**Process Book Quick View (Download-free)**
+
+Link: https://yvyyefidhh.feishu.cn/docs/doccnVLHbcoZbM98Tfzu1DaQwkb
+
+
 **Note**: Our final report is in the main branch and all materials used in the final project are uploaded to Final Project -- Materials file.
