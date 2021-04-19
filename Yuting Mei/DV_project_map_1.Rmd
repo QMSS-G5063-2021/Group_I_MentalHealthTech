@@ -1,0 +1,167 @@
+---
+title: "DV Project Map"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library (dplyr)
+library(ggplot2)
+setwd("/Users/Jimballoon/Desktop/YT/")
+data <- read.csv(file = 'mental-heath-in-tech-2016_20161114.csv',fileEncoding = "Latin1", check.names = F )
+df <- data %>% 
+  dplyr::select('Do you currently have a mental health disorder?','Have you ever sought treatment for a mental health issue from a mental health professional?', 'What US state or territory do you work in?','Do you have medical coverage (private insurance or state-provided) which includes treatment of  mental health issues?','Does your employer provide mental health benefits as part of healthcare coverage?')
+names(df) <- c('disorder1','treatment','state','mental_insurance','employer_benefit1')
+df <- df %>%
+  mutate(disorder = case_when(
+  disorder1 == 'Yes'  ~ 1,
+  disorder1 == 'Maybe'  ~ 0.5,
+  disorder1 == 'No'  ~ 0))
+df <- df %>%
+  mutate(employer_benefit = case_when(
+  employer_benefit1 == 'Yes'  ~ 1,
+  TRUE  ~ 0))
+df <- df %>% 
+  dplyr::select('state','treatment','employer_benefit','disorder')
+head(df)
+```
+```{r}
+df1 <- df %>% 
+  dplyr::select('state','treatment')
+df_treatment1 <- df1 %>% group_by(state) %>% summarise(count=n())
+df_treatment2 <- df1 %>% filter(treatment==1) %>% group_by(state) %>% summarise(count1=n())
+df_treatment <- df_treatment1 %>% 
+  left_join(df_treatment2, by = "state") %>% 
+  mutate(treatment_prec = count1/count) %>% 
+  filter(count>4)
+
+#df_treatment <- df1 %>% group_by(state) %>% summarise(treatment_perc = sum('treatment'== 1))
+#df1 <- group_by(df, state) %>% mutate(disorder_percent = disorder/sum(disorder))
+#head(df_treatment1)
+#sum(df_treatment1$count)
+```
+
+```{r}
+df2 <- df %>% 
+  dplyr::select('state','employer_benefit')
+df_employer_benefit1 <- df2 %>% group_by(state) %>% summarise(count=n())
+df_employer_benefit2 <- df2 %>% filter(employer_benefit==1) %>% group_by(state) %>% summarise(count1=n())
+df_employer_benefit <- df_employer_benefit1 %>% 
+  left_join(df_employer_benefit2, by = "state") %>% 
+  mutate(employer_benefit_prec = count1/count) %>% 
+  filter(count>4)
+```
+
+```{r}
+df_final <- merge(x = df_employer_benefit, y = df_treatment, by = "state", all = TRUE)  %>%
+  dplyr::select('state','treatment_prec','employer_benefit_prec')
+df_final$treatment_prec <- scales::percent(df_final$treatment_prec)
+df_final$employer_benefit_prec <- scales::percent(df_final$employer_benefit_prec)
+#df_final$treatment_prec <- round(df_final$treatment_prec, digits = 2)
+#df_final$employer_benefit_prec <- round(df_final$employer_benefit_prec, digits = 2)
+```
+
+```{r}
+library(rgdal)
+library(sp)
+library(raster)
+library(leaflet)
+library(maps)
+library(ggmap)
+# From https://www.census.gov/geo/maps-data/data/cbf/cbf_state.html
+states <- shapefile("/Users/Jimballoon/Downloads/cb_2018_us_state_20m/cb_2018_us_state_20m.shp")
+
+combined <- states@data %>% 
+  left_join(df_final, by = c(NAME = "state"))
+states@data <- combined
+
+```
+
+```{r}
+bins <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
+pal <- colorBin("YlOrRd", domain = states$treatment_prec, bins = bins)
+labels_states <- paste( states$NAME,
+                    "Employee Sougnt Treatment Frequency:", states$treatment_prec)
+
+m <- leaflet() %>%
+  setView(-96, 37.8, 4) %>%
+  addProviderTiles("MapBox", options = providerTileOptions(
+    id = "mapbox.light",
+    accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN'))) %>% 
+  addPolygons(data=states,
+    fillColor = ~pal(treatment_prec),
+    weight = 2,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE),
+    label = labels_states,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addLegend(data=states, pal = pal, title = "Frequency of Employee Who Sought Treatment", values = ~treatment_prec, opacity = 0.7,
+    position = "bottomright")
+
+
+m
+
+```
+
+Frequency of employee who sought mental health treatment: Iowa, North Carolina, New Jersey and Connecticut have the highest scores. States with too small sample size are removed (n<5).
+
+```{r}
+bins <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
+pal <- colorBin("YlOrRd", domain = states$employer_benefit_prec, bins = bins)
+labels_states <- paste( states$NAME,
+                    "Employer with Mental Healthcare Benefit Frequency:", states$employer_benefit_prec)
+
+n <- leaflet() %>%
+  setView(-96, 37.8, 4) %>%
+  addProviderTiles("MapBox", options = providerTileOptions(
+    id = "mapbox.light",
+    accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN'))) %>% 
+  addPolygons(data=states,
+    fillColor = ~pal(employer_benefit_prec),
+    weight = 2,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE),
+    label = labels_states,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addLegend(data=states, pal = pal, title = "Frequency of Employer with Mental Healthcare Benefit", values = ~employer_benefit_prec, opacity = 0.7,
+    position = "bottomright")
+
+
+n
+```
+
+Frequency of employer with mental healthcare benefit: Iowa is among the highest, while New Jersey is among the lowest.
+
+
+
+
+
+
+
+
+
+
+
