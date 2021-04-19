@@ -24,4 +24,4 @@ Link: https://rpubs.com/XingchenLi/final_project_visualization
 
 Link: https://youtu.be/uo-VyCP-BW8
 
-**Note**: Our final report is in the Final Project file and all materials used in the final project are uploaded to Final Project -- Materials file.
+**Note**: Our final report is in the main branch and all materials used in the final project are uploaded to Final Project -- Materials file.
