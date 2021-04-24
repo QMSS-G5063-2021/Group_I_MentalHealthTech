@@ -1,0 +1,264 @@
+---
+title: "DV Final Project_Xingchen Li"
+author: "Xingchen Li"
+date: "2021/4/18"
+output: 
+  html_document:
+    toc: true
+    # self_contained: true
+    keep_md: true
+font-family: Times 
+subtitle: Data Visualization - Columbia University
+autosize: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+
+library(dplyr)
+library(forcats)
+library(ggplot2)
+library(data.table)
+library(ggpubr)
+library(patchwork)
+setwd("C:/Users/Admin/Desktop")
+mental <- read.csv('mental-heath-in-tech-2016_20161114.csv', header = TRUE,encoding = "UTF-8")
+```
+
+
+```{r}
+head(arrange(plyr::count(mental, 'What.is.your.gender.'),desc(freq)),20)
+#arrange gender column
+class(mental$What.is.your.gender.)
+mental$What.is.your.gender.[mental$What.is.your.gender. == "male"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "M"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "m"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Male "] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Male (cis)"] <- "Male"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "female"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Female "] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "F"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "f"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "woman"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "Woman"] <- "Female"
+mental$What.is.your.gender.[mental$What.is.your.gender. == "female "] <- "Female"
+mental <- mental %>% filter(What.is.your.gender.== "Male" | What.is.your.gender.== "Female")
+setnames(mental, "What.is.your.gender.", "gender")
+arrange(plyr::count(mental, 'gender'),desc(freq))
+```
+
+
+
+```{r}
+#change names
+setnames(mental, "Did.you.hear.of.or.observe.negative.consequences.for.co.workers.with.mental.health.issues.in.your.previous.workplaces.", "consequences_coworkers")
+mental <- mental %>% filter(consequences_coworkers!="")
+setnames(mental, "Would.you.bring.up.a.mental.health.issue.with.a.potential.employer.in.an.interview.", "bringup_issue")
+setnames(mental, "Do.you.feel.that.being.identified.as.a.person.with.a.mental.health.issue.would.hurt.your.career.", "mental_hurt_career")
+setnames(mental,"Do.you.think.that.team.members.co.workers.would.view.you.more.negatively.if.they.knew.you.suffered.from.a.mental.health.issue.","coworker_views")
+setnames(mental,"How.many.employees.does.your.company.or.organization.have.","company_size")
+setnames(mental,"What.is.your.age.","age")
+```
+
+```{r}
+arrange(plyr::count(mental, 'gender'),desc(freq))
+arrange(plyr::count(mental$'consequences_coworkers'),desc(freq))
+arrange(plyr::count(mental$'bringup_issue'),desc(freq))
+arrange(plyr::count(mental$'mental_hurt_career'),desc(freq))
+arrange(plyr::count(mental$'coworker_views'),desc(freq))
+mental <-mental %>% filter(age!=323)#delete error
+arrange(plyr::count(mental$'age'),desc(x))
+mental$company_size[mental$company_size == "6.25"] <- "6-25"
+mental$company_size[mental$company_size == "1.5"] <- "1-5"
+mental <- mental %>% filter(company_size!="")#delete blank value
+mental <- mental %>% mutate(company_size = fct_relevel(company_size, 
+            "1-5", "6-25", "26-100", 
+            "100-500", "500-1000", "More than 1000"))#reorder the company size 
+plyr::count(mental$'company_size')
+```
+
+```{r message=FALSE, error=FALSE}
+mental1 <- mental %>% filter(gender == 'Male')%>%
+          dplyr::group_by(company_size,gender, bringup_issue) %>%
+          dplyr::summarise(frequency=n())%>%
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental2 <- mental %>% filter(gender == 'Female')%>%
+          dplyr::group_by(company_size,gender, bringup_issue) %>%
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio to make sure male and female are within same sample size
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental3 <- rbind(mental1, mental2)
+fig<- ggballoonplot(mental3, y = "company_size", x = "bringup_issue", size="frequency",fill = "grey",
+             facet.by = "gender", ggtheme = theme_bw())+
+  scale_fill_viridis_c(option = "D",direction = -1)
+fig <-  ggpar(fig,main = "Will you bring up mental issue during interviews?", submain ="Faceting by company size and gender", xlab = "Answer", ylab = "Company size")
+fig
+
+
+
+mental$mental_hurt_career[mental$mental_hurt_career == "No, it has not" | mental$mental_hurt_career == "No, I don't think it would"] <- "No"
+mental$mental_hurt_career[mental$mental_hurt_career == "Yes, I think it would" | mental$mental_hurt_career == "Yes, it has"] <- "Yes"
+mental4 <- mental %>% filter(gender == 'Male')%>%
+          dplyr::group_by(company_size,gender, mental_hurt_career) %>%
+          dplyr::summarise(frequency=n())%>%
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental5 <- mental %>% filter(gender == 'Female')%>%
+          dplyr::group_by(company_size,gender, mental_hurt_career) %>%
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio to make sure male and female are within same sample size
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental6 <- rbind(mental4, mental5)
+fig2<- ggballoonplot(mental6, y = "company_size", x = "mental_hurt_career", fill = "grey", size="frequency",
+             facet.by = "gender", ggtheme = theme_bw())+
+  scale_fill_viridis_c(option = "D",direction = -1)
+fig2 <-  ggpar(fig2,main = "Will identification of mental health issues hurt your career?", submain ="Faceting by company size and gender", xlab = "Answer", ylab = "Company size")
+fig2
+
+
+mental$coworker_views[mental$coworker_views == "No, they do not" | mental$coworker_views == "No, I don't think they would"] <- "No"
+mental$coworker_views[mental$coworker_views == "Yes, I think they would" | mental$coworker_views == "Yes, they do"] <- "Yes"
+
+mental7 <- mental %>% filter(gender == 'Male')%>%
+          dplyr::group_by(company_size,gender, coworker_views) %>%
+          dplyr::summarise(frequency=n())%>%
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental8 <- mental %>% filter(gender == 'Female')%>%
+          dplyr::group_by(company_size,gender, coworker_views) %>%
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio to make sure male and female are within same sample size
+          dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
+
+mental9 <- rbind(mental7, mental8)
+fig3<- ggballoonplot(mental9, y = "company_size", x = "coworker_views", fill = "grey", size="frequency",
+             facet.by = "gender", ggtheme = theme_bw())+
+  scale_fill_viridis_c(option = "D",direction = -1)
+fig3 <-  ggpar(fig3,main = "Will coworkers view you more negatively?", submain ="Faceting by company size and gender", xlab = "Answer", ylab = "Company size")
+fig3
+```
+
+
+
+Waffle Chart Based on Work Positions
+```{r}
+library(stringr)
+library(waffle)
+library(viridis)
+setnames(mental,"Which.of.the.following.best.describes.your.work.position.","work_position_general")
+```
+
+
+```{r}
+work_position <- mental$work_position_general
+work_position <- word(work_position,1,sep = "\\|")
+work_position <- as.data.frame(work_position)
+mental <- cbind(mental, work_position)
+arrange(plyr::count(mental, 'work_position'),desc(freq)) %>% filter(work_position!="Other") %>% top_n(6)
+```
+
+
+
+```{r}
+mental$mental_hurt_career <- as.character(mental$mental_hurt_career)
+
+plyr::count(mental$mental_hurt_career)
+#arrange by job types 
+mental_wp_back <- mental %>% dplyr::filter(work_position== "Back-end Developer") %>% dplyr::select(mental_hurt_career, work_position) 
+back <- table(mental_wp_back$mental_hurt_career) 
+back_w <- waffle(back, rows = 12) + 
+  labs(title = "Back-end Developer") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+mental_wp_front <- mental%>% dplyr::filter(work_position== "Front-end Developer") %>% dplyr::select(mental_hurt_career, work_position)                 
+front <- table(mental_wp_front$mental_hurt_career) 
+front_w <- waffle(front, rows = 9)+ 
+  labs(title = "Front-end Developer") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+
+mental_wp_lead <- mental %>% dplyr::filter(work_position== "Supervisor/Team Lead")%>% dplyr::select(mental_hurt_career, work_position) 
+lead <- table(mental_wp_lead$mental_hurt_career) 
+lead_w <- waffle(lead, rows = 9)+ 
+  labs(title = "Supervisor/Team Lead") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+ 
+
+mental_wp_devops <- mental %>% dplyr::filter(work_position== "DevOps/SysAdmin")%>% dplyr::select(mental_hurt_career, work_position) 
+devops<- table(mental_wp_devops$mental_hurt_career) 
+devops_w <- waffle(devops, rows = 9)+ 
+  labs(title = "DevOps/SysAdmin") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+ 
+mental_wp_advocate <- mental %>% dplyr::filter(work_position== "Dev Evangelist/Advocate")%>% dplyr::select(mental_hurt_career, work_position) 
+advocate<- table(mental_wp_advocate$mental_hurt_career) 
+advocate_w <- waffle(advocate, rows = 6)+ 
+  labs(title = "Dev Evangelist/Advocate") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+
+mental_wp_support <- mental %>% dplyr::filter(work_position== "Support")%>% dplyr::select(mental_hurt_career, work_position) 
+support<- table(mental_wp_support$mental_hurt_career) 
+support_w <- waffle(support, rows = 6)+ 
+  labs(title = "Support") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+back_w + lead_w+ front_w + devops_w + advocate_w + support_w+ plot_annotation(title = 'Will identification of mental health issue would hurt your career?', subtitle = 'Faceting by job types') + plot_layout(nrow =3, byrow = FALSE)  
+```
+
+
+```{r}
+#arrange answers
+
+
+top6 <-mental %>% dplyr::filter(work_position!="Other") %>%
+                dplyr::select(mental_hurt_career, work_position) %>% 
+                dplyr::filter(work_position %in% c("Back-end Developer","Front-end Developer","Support","Supervisor/Team Lead","DevOps/SysAdmin","Dev Evangelist/Advocate"))
+  #dplyr::filter(work_position == "Back-end Developer" | work_position == "Front-end Developer" | work_position == "Support"| work_position == "Supervisor/Team Lead"| work_position == "DevOps/SysAdmin"| work_position == "Dev Evangelist/Advocate")
+```
+
+
+```{r}
+mental_maybe <- top6 %>% dplyr::filter(mental_hurt_career== "Maybe") 
+maybe <- table(mental_maybe$work_position) 
+maybe_w <- waffle(maybe, rows = 16, legend_pos="bottom") + 
+  labs(title = "") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")+ 
+  labs(title = "Answer: Maybe") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+
+mental_yes <- top6 %>% dplyr::filter(mental_hurt_career== "Yes") 
+yes <- table(mental_yes$work_position) 
+yes_w <- waffle(yes, rows = 16, legend_pos="bottom") + 
+  labs(title = "") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")+ 
+  labs(title = "Answer: Yes") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+
+mental_no <- top6 %>% dplyr::filter(mental_hurt_career== "No") 
+no <- table(mental_no$work_position) 
+no_w <- waffle(no, rows = 8, legend_pos="bottom") + 
+  labs(title = "") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")+ 
+  labs(title = "Answer: No") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+yes_w + no_w + maybe_w +plot_annotation(title='Will identification of mental health issue would hurt your career?', subtitle="Faceting by people who think mental health issue would/maybe/would not hurt their careers")+ plot_layout(ncol = 3, nrow=1, byrow = FALSE,guides = "collect") & theme(legend.position='bottom') 
+
+
+```
+
