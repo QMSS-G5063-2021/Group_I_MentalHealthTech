@@ -54,7 +54,7 @@ library(sp)
 library(raster)
 library(leaflet)
 library(maps)
-library(ggmap)
+#library(ggmap)
 library(plotly)
 library(quanteda)
 library(wordcloud)
@@ -81,7 +81,7 @@ gender <- temp
 # age
 age <- mental[, grep('What.is.your.age.', colnames(mental))]
 breaks <- c(10*c(1:7))
-age_category <-  cut(as.numeric(age), breaks,include.lowest = TRUE, right = FALSE, dig.lab=10)
+age_category <-  cut(as.numeric(age), breaks,include.lowest = TRUE, right = FALSE, dig.lab=10,labels =c("10-20","20-30","30-40","40-50","50-60","60-70"))
 # condition
 condition <- mental[grep('condition', colnames(mental))]
 #colnames(condition)
@@ -90,20 +90,22 @@ condition.type <- condition$If.so..what.condition.s..were.you.diagnosed.with.
 temp <-  str_split(condition.type, '[|]', simplify = T)
 
 # data for plot
-plotdata <- data.frame(cbind(gender = gender, age = age, age_category = as.character(age_category),
-                  condition.diagnosed = condition.diagnosed,temp))
+plotdata <- data.frame(gender = gender, age = age, age_category = as.character(age_category),
+                  condition.diagnosed = condition.diagnosed,temp)
 plotdata_long <- melt(plotdata, id.vars = c('gender', 'age','age_category', 'condition.diagnosed'))
 #colnames(plotdata_long)
 
 ## age distribution
-plotdata=plotdata[-which(plotdata$age=="323"),]
+plotdata=plotdata[-which(plotdata$age==323),]
 box_gender <- ggplot(plotdata) +
     geom_boxplot(aes(x = gender,y =age,  fill = gender, group = gender)) + 
-  scale_y_discrete(breaks = seq(19, 99, 10)) + 
+  scale_y_continuous(breaks = seq(19, 99, 10)) + 
   scale_fill_manual(values = c("#E41A1C", "#449B75", "#AC5782")) +
     #scale_fill_manual(values=col) + 
     theme_bw()+ggtitle("Age Distribution by Sex")+xlab("Gender")+ylab("Age")+theme(plot.title = element_text(hjust = 0.5))
-box_gender
+
+library(plotly) 
+ggplotly(box_gender)
 ```
 
 ##### The age of woman mainly varies from 28 to 40, similar to that, the age of man mainly varies from 29 to 39 , both with a median age of 33.
@@ -150,19 +152,27 @@ for(i in 1:length(a)){
 }
 
 ggplot(plotdata_long) +
-  geom_bar(aes(x = age_category, fill = value),position = 'stack') +
-  facet_wrap(~gender) +
+  geom_bar(aes(x = gender, fill = value),position = 'stack') +
   scale_fill_manual(values=col) +
   theme_bw() +
   theme(legend.title = element_blank(),
         legend.position = 'bottom',
-        legend.text = element_text(size = 9),
-        axis.text.x = element_text(angle = 90))+
+        legend.text = element_text(size = 9))+
   guides(fill = guide_legend(ncol = 2,
                              keywidth = unit(4,'mm'),
-                             keyheight = unit(4,'mm')))+ylab("Number of People")+ggtitle("Specific Mental Health Disorders by Sex and Age")+theme(plot.title = element_text(hjust = 0.5))
+                             keyheight = unit(4,'mm')))+ylab("Number of People")+ggtitle("Specific Mental Health Disorders Composition by Gender")+theme(plot.title = element_text(hjust = 0.5))+ xlab("Gender")
 
 
+ggplot(plotdata_long) +
+  geom_bar(aes(x = age_category, fill = value),position = 'stack') +
+  scale_fill_manual(values=col) +
+  theme_bw() +
+  theme(legend.title = element_blank(),
+        legend.position = 'bottom',
+        legend.text = element_text(size = 9))+
+  guides(fill = guide_legend(ncol = 2,
+                             keywidth = unit(4,'mm'),
+                             keyheight = unit(4,'mm')))+ylab("Number of People")+ggtitle("Specific Mental Health Disorders Composition by Age")+theme(plot.title = element_text(hjust = 0.5)) +xlab("Age category")
 ```
 
 ##### Anxiety Disorder and Mood Disorder are the two most prevalent mental health disorders across all ages for both male and female within the tech industry.
@@ -172,7 +182,7 @@ ggplot(plotdata_long) +
 
 #### **Overview**
 
-##### In this part, we would like to show a statistics among different states in the US. To ensure that the analysis is accurate, we exclude the states whose sample size is less than 5. These states are shown as NA in the map. 
+##### In this part, we would like to show a statistics among different states in the US. Please note that the results of states with too small sample size are not considered as reliable (e.g.South Carolina). We will not analyze those states with sample size smaller than 5.
 
 ```{r}
 df <- mental %>% 
@@ -189,17 +199,18 @@ df <- df %>%
   TRUE  ~ 0))
 df <- df %>% 
   dplyr::select('state','treatment','employer_benefit','disorder')
-#head(df)
+head(df)
+```
 
 
+```{r}
 df1 <- df %>% 
   dplyr::select('state','treatment')
-df_treatment1 <- df1 %>% dplyr::group_by(state) %>% dplyr::summarise(count=n())
-df_treatment2 <- df1 %>% filter(treatment==1) %>% dplyr::group_by(state) %>% dplyr::summarise(count1=n())
+df_treatment1 <- df1 %>% group_by(state) %>% summarise(count=n())
+df_treatment2 <- df1 %>% filter(treatment==1) %>% group_by(state) %>% summarise(count1=n())
 df_treatment <- df_treatment1 %>% 
-  dplyr::left_join(df_treatment2, by = "state") %>% 
-  dplyr::mutate(treatment_prec = count1/count) %>% 
-  dplyr::filter(count>4)
+  left_join(df_treatment2, by = "state") %>% 
+  mutate(treatment_prec = count1/count) 
 
 #df_treatment <- df1 %>% group_by(state) %>% summarise(treatment_perc = sum('treatment'== 1))
 #df1 <- group_by(df, state) %>% mutate(disorder_percent = disorder/sum(disorder))
@@ -209,20 +220,15 @@ df_treatment <- df_treatment1 %>%
 
 df2 <- df %>% 
   dplyr::select('state','employer_benefit')
-df_employer_benefit1 <- df2 %>% dplyr::group_by(state) %>% dplyr::summarise(count=n())
-df_employer_benefit2 <- df2 %>% dplyr::filter(employer_benefit==1) %>% dplyr::group_by(state) %>% dplyr::summarise(count1=n())
+df_employer_benefit1 <- df2 %>% group_by(state) %>% summarise(count=n())
+df_employer_benefit2 <- df2 %>% filter(employer_benefit==1) %>% group_by(state) %>% summarise(count1=n())
 df_employer_benefit <- df_employer_benefit1 %>% 
-  dplyr::left_join(df_employer_benefit2, by = "state") %>% 
-  dplyr::mutate(employer_benefit_prec = count1/count) %>% 
-  dplyr::filter(count>4)
+  left_join(df_employer_benefit2, by = "state") %>% 
+  mutate(employer_benefit_prec = count1/count)
 
 
 df_final <- merge(x = df_employer_benefit, y = df_treatment, by = "state", all = TRUE)  %>%
   dplyr::select('state','treatment_prec','employer_benefit_prec')
-#df_final$treatment_prec <- scales::percent(df_final$treatment_prec)
-#df_final$employer_benefit_prec <- scales::percent(df_final$employer_benefit_prec)
-#df_final$treatment_prec <- round(df_final$treatment_prec, digits = 2)
-#df_final$employer_benefit_prec <- round(df_final$employer_benefit_prec, digits = 2)
 
 round_df <- function(x, digits) {
     numeric_columns <- sapply(x, mode) == 'numeric'
@@ -231,6 +237,10 @@ round_df <- function(x, digits) {
 }
 
 df_final <- round_df(df_final, 3)
+
+df_count <- df %>% count(state, sort = TRUE)
+names(df_count) <- c('state','sample')
+df_final <- merge(x = df_final, y = df_count, by = "state", all = TRUE)
 ```
 
 
@@ -248,16 +258,16 @@ states@data <- combined
 #### **Frequency of Employee Who Sought Mental Health Treatment**
 ```{r}
 bins <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
-pal <- colorBin("YlOrRd", domain = states$treatment_prec, bins = bins)
-labels_states <- paste( states$NAME,
-                    "Employee Sougnt Treatment Frequency:", states$treatment_prec)
+pal <- leaflet::colorBin("YlOrRd", domain = states$treatment_prec, bins = c(0, 0.2, 0.4, 0.6, 0.8, 1), na.color = "#C0C0C0")
+labels_states <- paste( states$NAME,":",
+                    "Frequency=", states$treatment_prec,",","Sample=",states$sample)
 
 m <- leaflet() %>%
-  setView(-96, 37.8, 4) %>%
-  addProviderTiles("MapBox", options = providerTileOptions(
+  leaflet::setView(-96, 37.8, 4) %>%
+  leaflet::addProviderTiles("MapBox", options = providerTileOptions(
     id = "mapbox.light",
     accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN'))) %>% 
-  addPolygons(data=states,
+  leaflet::addPolygons(data=states,
     fillColor = ~pal(treatment_prec),
     weight = 2,
     opacity = 1,
@@ -266,7 +276,7 @@ m <- leaflet() %>%
     fillOpacity = 0.7,
     highlight = highlightOptions(
       weight = 5,
-      color = "#666",
+      color = "white",
       dashArray = "",
       fillOpacity = 0.7,
       bringToFront = TRUE),
@@ -275,23 +285,26 @@ m <- leaflet() %>%
       style = list("font-weight" = "normal", padding = "3px 8px"),
       textsize = "15px",
       direction = "auto")) %>%
-  addLegend(data=states, pal = pal, title = "Frequency of Employee Who Sought Treatment", values = ~treatment_prec, opacity = 0.7,
-    position = "bottomright")
+  leaflet::addLegend(data=states, pal = pal, title = "Frequency of Employee Who Sought Treatment", 
+                     values = ~treatment_prec, opacity = 0.7,position = "bottomright")
+
+
 m
 
 ```
 
 
-##### Among all the states, Iowa, North Carolina, New Jersy and Connecticut have the highest scores (>0.8), while Kansas, Missouri and Arizona have the lowest scores (<0.2). For those states with high scores, the percentage of survey participants who have sought mental health is higher, suggesting that the overall mental health situation is worse.
+##### Frequency of employee who sought mental health treatment: Iowa, North Carolina, New Jersey and Connecticut have the highest scores.  
 
 <br /n>
 
 #### **Frequency of Employer with Mental Health Benefit**
 ```{r}
 bins <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
-pal <- colorBin("YlOrRd", domain = states$employer_benefit_prec, bins = bins)
-labels_states <- paste( states$NAME,
-                    "Employer with Mental Healthcare Benefit Frequency:", states$employer_benefit_prec)
+pal <- colorBin("YlOrRd", domain = states$employer_benefit_prec, bins = bins,na.color = "#C0C0C0")
+labels_states <- paste(states$NAME,":",
+                    "Frequency=", states$employer_benefit_prec,",","Sample=",states$sample)
+                   
 
 n <- leaflet() %>%
   setView(-96, 37.8, 4) %>%
@@ -299,7 +312,7 @@ n <- leaflet() %>%
     id = "mapbox.light",
     accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN'))) %>% 
   addPolygons(data=states,
-    fillColor = ~pal(employer_benefit_prec),
+    fillColor = ~pal(states$employer_benefit_prec),
     weight = 2,
     opacity = 1,
     color = "white",
@@ -307,7 +320,7 @@ n <- leaflet() %>%
     fillOpacity = 0.7,
     highlight = highlightOptions(
       weight = 5,
-      color = "#666",
+      color = "white",
       dashArray = "",
       fillOpacity = 0.7,
       bringToFront = TRUE),
@@ -323,15 +336,15 @@ n <- leaflet() %>%
 n
 ```
 
-##### In this plot, we would like to show the percentage of employers who provide mental healthcare benefit. Compared to the previous plot, none of the states scores higher than 0.8 in this analysis, meaning that the overall mental healthcare benefit is not good enough. Among all the states, Iowa is still in the highest range, suggesting that although its mental health benefit is good, the mental health is still not as optimal. Besides, Michigan, Pennsylvania, Tennessee and Missouri also do well in mental healthcare. New Jersey scores the lowest in the US in mental healthcare, while its employee mental health situation is also among the worst. 
+##### Frequency of employer with mental healthcare benefit: Iowa is among the highest, while New Jersey is among the lowest.
 
 <br /n>
 
-### Mental Health in TECH/IT Workplace
+### Mental Health and Company Size
 
 #### **Overview**
 
-##### Following our analysis of employees who sought mental treatment and had mental healthcare benefit, we would like to continue with relationship between mental issues and reactions in the workplace. 
+##### Following our analysis of employees who sought mental treatment and had mental healthcare benefit, we would like to continue with relationship between company size and mental issues in the workplace. 
 
 <br /n>
 
@@ -399,22 +412,25 @@ mental1 <- mental %>% filter(gender == 'Male')%>%
 
 mental2 <- mental %>% filter(gender == 'Female')%>%
           dplyr::group_by(company_size,gender, bringup_issue) %>%
-          dplyr::summarise(frequency=2.32*n())%>% #times male/female ratio
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio to make sure male and female are within same sample size
           dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
 
 mental3 <- rbind(mental1, mental2)
-fig<- ggballoonplot(mental3, y = "company_size", x = "bringup_issue", fill = "frequency", size="frequency",
+fig<- ggballoonplot(mental3, y = "company_size", x = "bringup_issue", size="frequency",fill = "grey",
              facet.by = "gender", ggtheme = theme_bw())+
   scale_fill_viridis_c(option = "D",direction = -1)
-fig <-  ggpar(fig,main = "Company Size & Whether You Would Mention Mental Issues During Interview", xlab = "Dose (mg)", ylab = "Company size")
-fig
+fig <-  ggpar(fig,main = "Will you bring up mental issue during interviews?", submain ="Faceting by company size and gender", xlab = "Answer", ylab = "Company size")
+ggplotly(fig)
 ```
 
 
 ##### From the gender perspective, it is quite uncommon for female respondents to bring up mental issues during interviews, while there are more male respondents who bring them up. From the company size perspective , employees from all company sizes tend to reject mentioning mental issues during interviews. Companies with 26-500 employees are more unlikely to receive mental issues during the interview according to the answer distribution.
+<br /n>
 
 
 ```{r}
+mental$mental_hurt_career[mental$mental_hurt_career == "No, it has not" | mental$mental_hurt_career == "No, I don't think it would"] <- "No"
+mental$mental_hurt_career[mental$mental_hurt_career == "Yes, I think it would" | mental$mental_hurt_career == "Yes, it has"] <- "Yes"
 mental4 <- mental %>% filter(gender == 'Male')%>%
           dplyr::group_by(company_size,gender, mental_hurt_career) %>%
           dplyr::summarise(frequency=n())%>%
@@ -422,21 +438,25 @@ mental4 <- mental %>% filter(gender == 'Male')%>%
 
 mental5 <- mental %>% filter(gender == 'Female')%>%
           dplyr::group_by(company_size,gender, mental_hurt_career) %>%
-          dplyr::summarise(frequency=2.32*n())%>% #times male/female ratio
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio to make sure male and female are within same sample size
           dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
 
 mental6 <- rbind(mental4, mental5)
-fig2<- ggballoonplot(mental6, y = "company_size", x = "mental_hurt_career", fill = "frequency", size="frequency",
+fig2<- ggballoonplot(mental6, y = "company_size", x = "mental_hurt_career", fill = "grey", size="frequency",
              facet.by = "gender", ggtheme = theme_bw())+
   scale_fill_viridis_c(option = "D",direction = -1)
-fig2 <-  ggpar(fig2,main = "Company Size & Whether Mental Health Issue Would Hurt Your Career", xlab = "Answer", ylab = "Company size")
-fig2
+fig2 <-  ggpar(fig2,main = "Will identification of mental health issues hurt your career?", submain ="Faceting by company size and gender", xlab = "Answer", ylab = "Company size")
+ggplotly(fig2)
 ```
 
 
 ##### From the gender perspective, female respondents tend to admit mental issues would hurt their careers, while certain males are more likely to consider mental issues would not do harm to careers. From the company size perspective , employees from all company sizes tend to connect mental issues with harm to careers. Especially, respondents from companies with 26-500 or more than 1000 employees are more likely to agree with this statement. In addition, responding with ambiguous answers is also common for respondents from all levels of companies.
+<br /n>
 
 ```{r}
+mental$coworker_views[mental$coworker_views == "No, they do not" | mental$coworker_views == "No, I don't think they would"] <- "No"
+mental$coworker_views[mental$coworker_views == "Yes, I think they would" | mental$coworker_views == "Yes, they do"] <- "Yes"
+
 mental7 <- mental %>% filter(gender == 'Male')%>%
           dplyr::group_by(company_size,gender, coworker_views) %>%
           dplyr::summarise(frequency=n())%>%
@@ -444,15 +464,15 @@ mental7 <- mental %>% filter(gender == 'Male')%>%
 
 mental8 <- mental %>% filter(gender == 'Female')%>%
           dplyr::group_by(company_size,gender, coworker_views) %>%
-          dplyr::summarise(frequency=2.32*n())%>% #times male/female ratio
+          dplyr::summarise(frequency=2.32*n())%>%#times male/female ratio to make sure male and female are within same sample size
           dplyr::mutate(frequency_ratio = frequency / sum(frequency)*100)
 
 mental9 <- rbind(mental7, mental8)
-fig3<- ggballoonplot(mental9, y = "company_size", x = "coworker_views", fill = "frequency", size="frequency",
+fig3<- ggballoonplot(mental9, y = "company_size", x = "coworker_views", fill = "grey", size="frequency",
              facet.by = "gender", ggtheme = theme_bw())+
   scale_fill_viridis_c(option = "D",direction = -1)
-fig3 <-  ggpar(fig3,main = "Company Size & Whether Coworkers Will View You More Negatively", xlab = "Answer", ylab = "Company size")
-fig3
+fig3 <-  ggpar(fig3,main = "Will coworkers view you more negatively?", submain ="Faceting by company size and gender", xlab = "Answer", ylab = "Company size")
+ggplotly(fig3)
 ```
 
 
@@ -460,119 +480,71 @@ fig3
 
 <br /n>
 
-#### **Reactions by Job Type**
+#### **Text Analysis**
 
-##### For the five plots below, we can see the answers to the question "whether mental health issues would hurt your careers" based on job types that are most common in the survey, including back-end engineers, front-end engineers, Team Lead, DevOps and Dev Evangelist.
-
-```{r} 
-library(stringr)  
-library(waffle)  
-library(viridis)  
-setnames(mental,"Which.of.the.following.best.describes.your.work.position.","work_position_general")  
-  
-work_position <- mental$work_position_general  
-work_position <- word(work_position,1,sep = "\\|")  
-work_position <- as.data.frame(work_position)  
-mental <- cbind(mental, work_position)  
-arrange(plyr::count(mental, 'work_position'),desc(freq)) %>% filter(work_position!="Other") %>% top_n(6) 
- 
-#reorder the answer 
-mental <- mental %>% mutate(mental_hurt_career = fct_relevel(mental_hurt_career,  
-            "No, it has not", "No, I don't think it would", "Maybe",  
-            "Yes, I think it would", "Yes, it has")) 
- 
-#arrange by job types  
-mental_wp_back <- mental %>% dplyr::filter(work_position== "Back-end Developer") %>% dplyr::select(mental_hurt_career, work_position)  
-back <- table(mental_wp_back$mental_hurt_career)  
-back_w <- waffle(back, rows = 12,  
-                 #xlab="Whether mental health issue would hurt your career", 
-                 colors = viridis::viridis(5),reverse=TRUE) +  
-  labs(title = "Back-end Developer") +  
-  theme(plot.title = element_text(color = "black", size = 10)) 
- 
-mental_wp_front <- mental%>% dplyr::filter(work_position== "Front-end Developer") %>% dplyr::select(mental_hurt_career, work_position)                  
-front <- table(mental_wp_front$mental_hurt_career)  
-front_w <- waffle(front, rows = 10,  
-                  #xlab="Whether mental health issue would hurt your career", 
-                  colors = viridis::viridis(5),reverse=TRUE)+  
-  labs(title = "Front-end Developer") +  
-  theme(plot.title = element_text(color = "black", size = 10)) 
- 
-mental_wp_lead <- mental %>% dplyr::filter(work_position== "Supervisor/Team Lead")%>% dplyr::select(mental_hurt_career, work_position)  
-lead <- table(mental_wp_lead$mental_hurt_career)  
-lead_w <- waffle(lead, rows = 10,  
-                 #xlab="Whether mental health issue would hurt your career", 
-                 colors = viridis::viridis(5),reverse=TRUE)+  
-  labs(title = "Supervisor/Team Lead") +  
-  theme(plot.title = element_text(color = "black", size = 10)) 
-  
- 
-mental_wp_devops <- mental %>% dplyr::filter(work_position== "DevOps/SysAdmin")%>% dplyr::select(mental_hurt_career, work_position)  
-devops<- table(mental_wp_devops$mental_hurt_career)  
-devops_w <- waffle(devops, rows = 10,  
-                   #xlab="Whether mental health issue would hurt your career", 
-                   colors = viridis::viridis(5),reverse=TRUE)+  
-  labs(title = "DevOps/SysAdmin") +  
-  theme(plot.title = element_text(color = "black", size = 10)) 
-  
-mental_wp_advocate <- mental %>% dplyr::filter(work_position== "Dev Evangelist/Advocate")%>% dplyr::select(mental_hurt_career, work_position)  
-advocate<- table(mental_wp_advocate$mental_hurt_career)  
-advocate_w <- waffle(advocate, rows = 10,  
-                     #xlab="Whether mental health issue would hurt your career", 
-                     colors = viridis::viridis(5),reverse=TRUE)+  
-  labs(title = "Dev Evangelist/Advocate") +  
-  theme(plot.title = element_text(color = "black", size = 10)) 
- 
- 
-mental_wp_support <- mental %>% dplyr::filter(work_position== "Support")%>% dplyr::select(mental_hurt_career, work_position)  
-support<- table(mental_wp_support$mental_hurt_career)  
-support_w <- waffle(support, rows = 10,  
-                     #xlab="Whether mental health issue would hurt your career", 
-                     colors = viridis::viridis(5),reverse=TRUE)+  
-  labs(title = "Support") +  
-  theme(plot.title = element_text(color = "black", size = 10)) 
- 
-back_w + lead_w+ front_w + devops_w + advocate_w + support_w + plot_layout(nrow =3, byrow = FALSE) + plot_annotation('Survey: Whether mental health issue would hurt your career') 
-
-```
-
-##### We can see most of the respondents from different job types agree with the statement that mental health issues would hurt their careers, despite the fact that around one-third of them answer "maybe".
-<br /n>
-
-### Text Analysis
-
-#### **Overview**
-
-##### In this section, we want to further explore people’s attitudes towards mental health in workplace. We did text analysis using participants’ answer for would you bring up a mental health issue with a potential employer in an interview, why and why not. 
-
-```{r}
-#import data
-mental_health <- read_csv("mental-heath-in-tech-2016_20161114.csv")
-head(mental_health[38])
-
-names(mental_health)[37:38] <- c("menissue_interview","text")
-mental_health <- filter(mental_health, !is.na(text)) 
-menissue_interview <- as.data.frame(table(mental_health$menissue_interview)) 
-names(menissue_interview) <- c("Would you bring up a mental health issue with a potential employer in an interview?", "Frequency")
-menissue_interview
-```
+##### In the following part, we want to further explore the relationship of people’s attitudes towards mental health in workplace and company size. We will do text analysis using participants' answer for would you bring up a mental health issue with a potential employer in an interview, why and why not. Besides, we plan to divide company size into three categories: small(n<=100), medium-sized(100<n<500), large(n>=500).
 
 <br /n>
 
 #### **Wordcloud for Each Answer**
+```{r preparation, message=FALSE, warning=FALSE, include=FALSE}
+#import data
+mental_health <- read.csv("D:/QMSS 2021 SPRING/DV/final project/dv_total/mental-heath-in-tech-2016_20161114.csv", header = TRUE, encoding = "UTF-8")
+names(mental_health)[38] <- c("text")
+setnames(mental_health, "Would.you.bring.up.a.mental.health.issue.with.a.potential.employer.in.an.interview.", "bringup_issue")
 
-```{r wordcloud maybe, message=FALSE, warning=FALSE}
+#job type
+setnames(mental_health,"Which.of.the.following.best.describes.your.work.position.","work_position_general")  
+work_position <- mental_health$work_position_general  
+work_position <- word(work_position,1,sep = "\\|")
+work_position <- as.data.frame(work_position)  
+mental_health <- cbind(mental_health, work_position) 
+mental_health$job_type <- ifelse(mental_health$work_position %in% c("Back-end Developer","Front-end Developer"),"Developer",ifelse(mental_health$work_position %in% c("Dev Evangelist/Advocate","Support"),"Supportor","Other"))
+
+mental_j <- mental_health %>% group_by(work_position) %>% summarise("freq"=table(work_position))
+mental_j
+
+#company size
+setnames(mental_health,"How.many.employees.does.your.company.or.organization.have.","company_size")
+mental_health$company_size[mental_health$company_size == "6.25"] <- "6-25"
+mental_health$company_size[mental_health$company_size == "1.5"] <- "1-5"
+mental_health$`company size` <- ifelse(mental_health$company_size %in% c("6-25","1-5","26-100"), "small", ifelse(mental_health$company_size %in% c("More than 1000","500-1000"), "large", "medium-sized"))
+
+#set colors
+mental_health$color_size <- ifelse(mental_health$`company size` == "small","#66C2A5",ifelse(mental_health$`company size` == "medium-sized","#FC8D62","#8DA0CB"))
+mental_health$color_job <- ifelse(mental_health$job_type == "Supportor","#66C2A5",ifelse(mental_health$job_type == "Other","#FC8D62","#8DA0CB"))
+mental_health <- mental_health %>% filter(company_size!="") %>% filter(text!="") 
+
+#mental by answer
+mental_a <- mental_health %>% group_by(bringup_issue) %>% summarise("freq"=table(bringup_issue))
+mental_a
+
+#mental by answer and company size
+mental_ac <- mental_health %>% group_by(bringup_issue,`company size`) %>% summarise("freq"=table(bringup_issue))
+mental_ac
+
+#mental by answer and jobtype
+mental_aj <- mental_health %>% group_by(bringup_issue,job_type) %>% summarise("freq"=table(job_type))
+mental_aj
+```
+
+##### We plan to draw word clouds for each answer and differnt company sizes are distinguished by color: green indicates small firm, orange represents medium-scale enterprise and purple presents large company.
+<br /n>
+
+##### Wordcloud for Answer=Maybe
+```{r wordcloud size maybe, message=FALSE, warning=FALSE}
 #answer = maybe
 #create corpus
-mental_health_maybe <- filter(mental_health, menissue_interview == "Maybe")
+mental_health_maybe <- filter(mental_health, bringup_issue == "Maybe")
 mental_health_maybe$doc_id <- as.character(c(1:nrow(mental_health_maybe)))
-mental_health_maybe <- mental_health_maybe[, c(62,38)]
-maybe_corpus <- DataframeSource(mental_health_maybe) %>% VCorpus(.)
+mental_health_maybe <- mental_health_maybe[, c(67,38,65,64)]
+maybe_source <- DataframeSource(mental_health_maybe) 
+maybe_corpus <- VCorpus(maybe_source)
 #clean corpus
 clean_corpus <- function(corpus){
   corpus <- tm_map(corpus, removePunctuation)
   corpus <- tm_map(corpus, content_transformer(tolower))
-  corpus <- tm_map(corpus, removeWords, c("mental", "health", "interview", "feel", "bring", "want", "made", "get", "employer", "hire", "need", "know","sure", "may", "affect", "job", stopwords("en")))
+  corpus <- tm_map(corpus, removeWords, c("mental", "health", "interview", "feel", "bring", "want", "made", "get", "employer", "hire", "need", "know", "may", "affect", "job", "might", "reason", "answer", "think",  stopwords("en")))
   corpus <- tm_map(corpus, removeNumbers)
   corpus <- tm_map(corpus, stripWhitespace)
   return(corpus)
@@ -590,112 +562,137 @@ maybe_stemmed <- tm_map(maybe_clean, stemDocument)
 maybe_compl <- lapply(maybe_stemmed, stemCompletion2, dictionary = maybe_clean) %>% VectorSource() %>% Corpus()
 #word cloud
 maybe_tdm <- TermDocumentMatrix(maybe_compl)
-maybe_tf_idf <- tidy(maybe_tdm)  %>%
+maybe_tf_idf <- tidy(maybe_tdm)  %>% left_join(.,mental_health_maybe[,c(1,3,4)],by=c("document"="doc_id")) %>% 
   bind_tf_idf(term, document, count) %>%
   arrange(desc(tf_idf))
 set.seed(1000)
-wordcloud2(maybe_tf_idf[, c(1,4)], color = "random-dark", shape = "diamond")
+wordcloud2(maybe_tf_idf[, c(1,6)], color = maybe_tf_idf$color_size, shape = "diamond")
 ```
-
-##### The word cloud above shows the most common words used by participants answering maybe. They use uncertain words like I don’t know and unsure a lot, which is consistent with their answer.
 
 <br /n>
 
-```{r wordcloud yes, message=FALSE, warning=FALSE}
+##### Wordcloud for Answer=Yes
+```{r wordcloud size yes, message=FALSE, warning=FALSE}
 #answer = yes
-#create corpus and clean
-mental_health_yes <- filter(mental_health, menissue_interview == "Yes")
+#create corpus
+mental_health_yes <- filter(mental_health, bringup_issue == "Yes")
 mental_health_yes$doc_id <- as.character(c(1:nrow(mental_health_yes)))
-mental_health_yes <- mental_health_yes[, c(62,38)]
-yes_corpus <- DataframeSource(mental_health_yes) %>% VCorpus(.)
+mental_health_yes <- mental_health_yes[, c(67,38,65,64)]
+yes_source <- DataframeSource(mental_health_yes) 
+yes_corpus <- VCorpus(yes_source)
+#clean corpus
 yes_clean <- clean_corpus(yes_corpus)
 #stem and stem completion
 yes_stemmed <- tm_map(yes_clean, stemDocument)
 yes_compl <- lapply(yes_stemmed, stemCompletion2, dictionary = yes_clean) %>% VectorSource() %>% Corpus()
 #word cloud
 yes_tdm <- TermDocumentMatrix(yes_compl)
-yes_tf_idf <- tidy(yes_tdm)  %>%
+yes_tf_idf <- tidy(yes_tdm)  %>% left_join(.,mental_health_yes[,c(1,3,4)],by=c("document"="doc_id")) %>% 
   bind_tf_idf(term, document, count) %>%
   arrange(desc(tf_idf))
 set.seed(1000)
-wordcloud2(yes_tf_idf[, c(1,4)], color = "random-dark", shape = "diamond")
+wordcloud2(yes_tf_idf[, c(1,6)], color = yes_tf_idf$color_size, shape = "diamond")
 ```
-
-##### The word cloud above shows the most common words used by participants answering yes. Words like affects, effect and relevant show that they think the issue is important. Although positive words like advovate are used, they also use words like unfortunate to show their worries.
 
 <br /n>
 
-```{r wordcloud no, message=FALSE, warning=FALSE}
+##### Wordcloud for Answer=No
+```{r wordcloud size no, message=FALSE, warning=FALSE}
 #answer = no
-#create corpus and clean
-mental_health_no <- filter(mental_health, menissue_interview == "No")
+#create corpus
+mental_health_no <- filter(mental_health, bringup_issue == "No")
 mental_health_no$doc_id <- as.character(c(1:nrow(mental_health_no)))
-mental_health_no <- mental_health_no[, c(62,38)]
-no_corpus <- DataframeSource(mental_health_no) %>% VCorpus(.)
+mental_health_no <- mental_health_no[, c(67,38,65,64)]
+no_source <- DataframeSource(mental_health_no) 
+no_corpus <- VCorpus(no_source)
+#clean corpus
 no_clean <- clean_corpus(no_corpus)
 #stem and stem completion
 no_stemmed <- tm_map(no_clean, stemDocument)
 no_compl <- lapply(no_stemmed, stemCompletion2, dictionary = no_clean) %>% VectorSource() %>% Corpus()
 #word cloud
 no_tdm <- TermDocumentMatrix(no_compl)
-no_tf_idf <- tidy(no_tdm)  %>%
+no_tf_idf <- tidy(no_tdm)  %>% left_join(.,mental_health_no[,c(1,3,4)],by=c("document"="doc_id")) %>% 
   bind_tf_idf(term, document, count) %>%
   arrange(desc(tf_idf))
 set.seed(1000)
-wordcloud2(no_tf_idf[, c(1,4)], color = "random-dark", shape = "diamond")
+wordcloud2(no_tf_idf[, c(1,6)], color = no_tf_idf$color_size, shape = "diamond")
 ```
 
-##### The word cloud above shows the most common words used by participants answering no. They tend to use negative words in answer, such as lose, taboo, and cost.
 
 <br /n>
 
 #### **Word Frequency for Each Answer**
 
-```{r frequency, message=FALSE, warning=FALSE}
+##### We visualize the top 5 most frequent words for each answer and analyze how the words differ by company size.
+
+```{r frequency size maybe, message=FALSE, warning=FALSE}
 #top 10 words in maybe
-b1 <- maybe_tf_idf %>% dplyr::group_by(term) %>% 
-  dplyr::summarize("frequency"=sum(count)) %>% slice_max(frequency, n=10) %>% 
-  ggplot(aes(reorder(term, frequency), frequency)) + 
-  geom_bar(stat = "identity", fill="#AC5782") + coord_flip() + 
+b1 <- filter(maybe_tf_idf, !(term %in% c("issue","issues","work","make","still"))) %>% group_by(`company size`, term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=5) %>% 
+  ggplot(aes(reorder(term, frequency), frequency, fill=`company size`)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  facet_wrap(~`company size`, scales="free_x") +
+  scale_fill_brewer(palette = "Set2", direction=-1) +
+  guides(fill=FALSE) +
   ggtitle("Answer = Maybe") +
   theme(axis.title.y = element_blank(),
         axis.title.x = element_blank(),
         panel.background = element_blank(), 
         plot.title = element_text(face = "bold", color = "black", size = 10))
+b1
+```
 
+##### Unsure words like depends, discuss and potential are usually used by participants from different sized companies to show their attitudes, which is consistent with their answer. They also use stigma to express their worries about the issue. Besides, unique words like business from large companies, accomondation from medium_sized ones and wouldn't as well as don't from small firms also present different perspectives from respondents in different sized companies. 
+
+
+```{r frequency size yes, message=FALSE, warning=FALSE}
 #top 10 words in yes
-b2 <- yes_tf_idf %>% dplyr::group_by(term) %>% 
-  dplyr::summarize("frequency"=sum(count)) %>% slice_max(frequency, n=10) %>% 
-  ggplot(aes(reorder(term, frequency), frequency)) + 
-  geom_bar(stat = "identity", fill="#E41A1C") + coord_flip() + 
+b2 <- yes_tf_idf %>% filter(!(term %in% c("issue","issues","work","answer","reason","hearing","generally","felt","bringing","allow","ahead","time","theyre","see","part","let","talk","point","fact","ensure"))) %>% group_by(`company size`, term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=4) %>% 
+  ggplot(aes(reorder(term, frequency), frequency, fill=`company size`)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  facet_wrap(~`company size`, scales="free_x") +
+  scale_fill_brewer(palette = "Set2", direction=-1) +
+  guides(fill=FALSE) +
   ggtitle("Answer = Yes") +
   theme(axis.title.y = element_blank(),
         axis.title.x = element_blank(),
         panel.background = element_blank(), 
         plot.title = element_text(face = "bold", color = "black", size = 10))
+b2
+```
+
+##### Those who answer yes tend to use terms like impact, important and good to show the importance of mentioning mental health issue. In addition, words like performance from small companies indicate that they focus on work performance and may not mind such issues. People from medium-sacle firms use a lot negative words like unfortunate and problematic although they answer yes. 
+
+
+```{r frequency size no, message=FALSE, warning=FALSE}
 #top 10 words in no
-b3 <- no_tf_idf %>% dplyr::group_by(term) %>% 
-  dplyr::summarize("frequency"=sum(count)) %>% slice_max(frequency, n=10) %>% 
-  ggplot(aes(reorder(term, frequency), frequency)) + 
-  geom_bar(stat = "identity", fill = "#449B75") + coord_flip() + 
+b3 <- filter(no_tf_idf, !(term %in% c("issue","issues","work"))) %>% group_by(`company size`, term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=5) %>% 
+  ggplot(aes(reorder(term, frequency), frequency, fill=`company size`)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  facet_wrap(~`company size`, scales="free_x") +
+  scale_fill_brewer(palette = "Set2", direction=-1) +
+  guides(fill=FALSE) +
   ggtitle("Answer = No") +
   theme(axis.title.y = element_blank(),
         axis.title.x = element_blank(),
         panel.background = element_blank(), 
         plot.title = element_text(face = "bold", color = "black", size = 10))
-b1+b3+b2+plot_annotation('Top 10 Most Frequent Words for Each Answer')
+b3
 ```
 
-##### Participants who answer maybe tend to use uncertain words like depends and discuss, but they also use some negative words such as stigma and wouldn’t. Those who answer yes tend to use positive words like important and good while those answering no use negative words such as stigma, don’t, wouldn’t and negatively. 
-
+##### Participants who answered no tend to use negative words like stigma, don't and wouldn't, quite similar to words from those who answered maybe, to show their negative attitudes. Besides, respondents from medium-scale enterprises frequently use discrimination to explain why they wouldn't talk about mental health issue in interviews.
 <br /n>
+
 
 #### **Sentiment Analysis for Each Answer**
 
-```{r sentiment, message=FALSE, warning=FALSE}
+```{r sentiment size, message=FALSE, warning=FALSE}
 #import Hu & Liu Dictionary
-pos <- read.table("positive-words.txt", as.is=T)
-neg <- read.table("negative-words.txt", as.is=T)
+pos <- read.table("D:/QMSS 2021 SPRING/DV/course_content4/Lectures/Week09/data/dictionaries/positive-words.txt", as.is=T)
+neg <- read.table("D:/QMSS 2021 SPRING/DV/course_content4/Lectures/Week09/data/dictionaries/negative-words.txt", as.is=T)
 #define sentiment fuction
 sentiment <- function(words){
   tok <- quanteda::tokens(words)
@@ -708,11 +705,12 @@ sentiment <- function(words){
 mental_health$sentiment <- sapply(mental_health$text, sentiment)
 
 #plot the relationship between sentiment and answer
-p1 <- ggplot(mental_health, aes(x = menissue_interview, y = sentiment)) + 
-  geom_boxplot(aes(fill=menissue_interview))  + 
-  stat_summary(mapping=aes(group=menissue_interview),fun="mean",geom="point",shape=23,size=3,fill="white") + 
-  scale_fill_manual(values = c("#AC5782", "#449B75", "#E41A1C")) +
-  labs(title = "Distribution of Sentiment Score by Answer", y = "Sentiment Score") + 
+p1 <- ggplot(mental_health, aes(x = bringup_issue, y = sentiment)) + 
+  geom_boxplot(aes(fill=`company size`))  + 
+  stat_summary(mapping=aes(group=bringup_issue),fun="mean",geom="point",shape=23,size=3,fill="white") + 
+  facet_wrap(~`company size`) + 
+  scale_fill_manual(values = c("#8DA0CB","#FC8D62","#66C2A5")) +
+  labs(title = "Distribution of Sentiment Score by Answer and Company Size", y = "Sentiment Score") + 
   theme(legend.position = 'none', 
         axis.title.x = element_blank(),
         axis.title.y = element_text(vjust = 2),
@@ -720,10 +718,309 @@ p1 <- ggplot(mental_health, aes(x = menissue_interview, y = sentiment)) +
         panel.grid.major = element_line(color = "gray50", size = 0.5),
         panel.grid.major.x = element_blank(),
         plot.title = element_text(face = "bold", color = "black", size = 12))
-pp1 <- ggplotly(p1, tooltip = "sentiment")
-pp1
+ggplotly(p1, tooltip = "sentiment")
 ```
 
-##### Respondents who answer maybe show a negative sentiment towards the question with mean score -0.41 and median score -1. Compared with them, those answering no show a more negative sentiment with mean score -0.43 and median score -1. However, those with answer yes present a totally different sentiment. They get an average sentiment score of 0.21 and median score of 0.17.
+##### In sum, respondents who answered maybe and no show a negative sentiment towards the question, which is correspond to the similarity of word frequency for the two answers, while those answering yes present a positive sentiment, except for participants from small firms. There is a clear pattern that the larger company a respondent comes from, the more positive he/she will be on whether to bring up a mental health issue in an interview.
+
+<br /n>
+
+### Mental Health and Job Type
+
+#### **Overview**
+
+##### In this section, we would like to explore the relationship between job type and mental issues in the workplace. 
+
+<br /n>
+
+#### **Reactions by Job Type**
+
+##### For the plot below, we can see the answers fromt the waffle chart to the question "whether mental health issues would hurt your careers" faceting by the most common job types in the survey, including back-end engineers, front-end engineers, Team Lead, DevOps and Dev Evangelist. Also, we displayed the waffle chart faceting by people who think mental health issue would/maybe/would not hurt their careers to visualize from another perspective.
+
+```{r} 
+library(stringr)  
+library(waffle)  
+library(viridis)  
+setnames(mental,"Which.of.the.following.best.describes.your.work.position.","work_position_general")  
+  
+work_position <- mental$work_position_general  
+work_position <- word(work_position,1,sep = "\\|")  
+work_position <- as.data.frame(work_position)  
+mental <- cbind(mental, work_position)  
+arrange(plyr::count(mental, 'work_position'),desc(freq)) %>% filter(work_position!="Other") %>% top_n(6) 
+ 
+mental$mental_hurt_career <- as.character(mental$mental_hurt_career)
+
+hurt_career <- as.data.frame(table(mental$mental_hurt_career)) 
+names(hurt_career) <- c("Do you feel that a mental health issue would hurt your career?", "Frequency")
+hurt_career
+
+#plyr::count(mental$mental_hurt_career)
+
+#arrange by job types 
+mental_wp_back <- mental %>% dplyr::filter(work_position== "Back-end Developer") %>% dplyr::select(mental_hurt_career, work_position) 
+back <- table(mental_wp_back$mental_hurt_career) 
+back_w <- waffle(back, rows = 12) + 
+  labs(title = "Back-end Developer") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+mental_wp_front <- mental%>% dplyr::filter(work_position== "Front-end Developer") %>% dplyr::select(mental_hurt_career, work_position)                 
+front <- table(mental_wp_front$mental_hurt_career) 
+front_w <- waffle(front, rows = 9)+ 
+  labs(title = "Front-end Developer") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+
+mental_wp_lead <- mental %>% dplyr::filter(work_position== "Supervisor/Team Lead")%>% dplyr::select(mental_hurt_career, work_position) 
+lead <- table(mental_wp_lead$mental_hurt_career) 
+lead_w <- waffle(lead, rows = 9)+ 
+  labs(title = "Supervisor/Team Lead") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+ 
+
+mental_wp_devops <- mental %>% dplyr::filter(work_position== "DevOps/SysAdmin")%>% dplyr::select(mental_hurt_career, work_position) 
+devops<- table(mental_wp_devops$mental_hurt_career) 
+devops_w <- waffle(devops, rows = 9)+ 
+  labs(title = "DevOps/SysAdmin") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+ 
+mental_wp_advocate <- mental %>% dplyr::filter(work_position== "Dev Evangelist/Advocate")%>% dplyr::select(mental_hurt_career, work_position) 
+advocate<- table(mental_wp_advocate$mental_hurt_career) 
+advocate_w <- waffle(advocate, rows = 6)+ 
+  labs(title = "Dev Evangelist/Advocate") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+
+mental_wp_support <- mental %>% dplyr::filter(work_position== "Support")%>% dplyr::select(mental_hurt_career, work_position) 
+support<- table(mental_wp_support$mental_hurt_career) 
+support_w <- waffle(support, rows = 6)+ 
+  labs(title = "Support") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")
+
+back_w + lead_w+ front_w + devops_w + advocate_w + support_w+ plot_annotation(title = 'Will identification of mental health issue would hurt your career?', subtitle = 'Faceting by job types') + plot_layout(nrow =3, byrow = FALSE)  
+
+```
+
+```{r}
+#arrange answers
+
+
+top6 <-mental %>% dplyr::filter(work_position!="Other") %>%
+                dplyr::select(mental_hurt_career, work_position) %>% 
+                dplyr::filter(work_position == "Back-end Developer" | work_position == "Front-end Developer" | work_position == "Support"| work_position == "Supervisor/Team Lead"| work_position == "DevOps/SysAdmin"| work_position == "Dev Evangelist/Advocate")
+
+mental_maybe <- top6 %>% dplyr::filter(mental_hurt_career== "Maybe") 
+maybe <- table(mental_maybe$work_position) 
+maybe_w <- waffle(maybe, rows = 16, legend_pos="bottom") + 
+  labs(title = "") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")+ 
+  labs(title = "Answer: Maybe") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+
+mental_yes <- top6 %>% dplyr::filter(mental_hurt_career== "Yes") 
+yes <- table(mental_yes$work_position) 
+yes_w <- waffle(yes, rows = 16, legend_pos="bottom") + 
+  labs(title = "") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")+ 
+  labs(title = "Answer: Yes") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+
+mental_no <- top6 %>% dplyr::filter(mental_hurt_career== "No") 
+no <- table(mental_no$work_position) 
+no_w <- waffle(no, rows = 8, legend_pos="bottom") + 
+  labs(title = "") + 
+  theme(plot.title = element_text(color = "black", size = 10))+ 
+  gradient_color("RdYlBu")+ 
+  labs(title = "Answer: No") + 
+  theme(plot.title = element_text(color = "black", size = 10))
+
+yes_w + no_w + maybe_w +plot_annotation(title='Will identification of mental health issue would hurt your career?', subtitle="Faceting by people who think mental health issue would/maybe/would not hurt their careers")+ plot_layout(ncol = 3, nrow=1, byrow = FALSE,guides = "collect") & theme(legend.position='bottom') 
+
+
+```
+
+
+
+##### We can see most of the respondents from different job types agree with the statement that mental health issues would hurt their careers, despite the fact that around one-third of them answer "maybe".
+<br /n>
+
+#### **Text Analysis**
+
+##### Again, we want to further explore how people from different jobs view mental health issues in workplace. We will do text analysis using participants' answer for would you bring up a mental health issue with a potential employer in an interview, why and why not. Besides, we divide job types into three categories: Developer, Supporter and Other.
+<br /n>
+
+#### **Wordcloud for Each Answer**
+
+##### We plan to draw word clouds for each answer and differnt job types are distinguished by color: green indicates supporter, orange represents other and purple presents developer.
+<br /n>
+
+##### Wordcloud for Answer=Maybe
+```{r wordcloud job maybe, message=FALSE, warning=FALSE}
+#answer = maybe
+#create corpus
+mental_health_maybe_job <- filter(mental_health, bringup_issue == "Maybe")
+mental_health_maybe_job$doc_id <- as.character(c(1:nrow(mental_health_maybe_job)))
+mental_health_maybe_job <- mental_health_maybe_job[, c(68,38,66,63)]
+maybe_job_corpus <- DataframeSource(mental_health_maybe_job) %>% VCorpus(.)
+#clean 
+maybe_job_clean <- clean_corpus(maybe_job_corpus)
+maybe_job_stemmed <- tm_map(maybe_job_clean, stemDocument)
+maybe_job_compl <- lapply(maybe_job_stemmed, stemCompletion2, dictionary = maybe_job_clean) %>% VectorSource() %>% Corpus()
+#word cloud
+maybe_job_tdm <- TermDocumentMatrix(maybe_job_compl)
+maybe_job_tf_idf <- tidy(maybe_job_tdm)  %>% left_join(.,mental_health_maybe_job[,c(1,3,4)],by=c("document"="doc_id")) %>% 
+  bind_tf_idf(term, document, count) %>%
+  arrange(desc(tf_idf))
+set.seed(1000)
+wordcloud2(maybe_job_tf_idf[, c(1,6)], color = maybe_job_tf_idf$color_job, shape = "diamond")
+```
+
+<br /n>
+
+##### Wordcloud for Answer=Yes
+```{r wordcloud job yes, message=FALSE, warning=FALSE}
+#answer = yes
+#create corpus
+mental_health_yes_job <- filter(mental_health, bringup_issue == "Yes")
+mental_health_yes_job$doc_id <- as.character(c(1:nrow(mental_health_yes_job)))
+mental_health_yes_job <- mental_health_yes_job[, c(68,38,66,63)]
+yes_job_corpus <- DataframeSource(mental_health_yes_job) %>% VCorpus(.)
+#clean 
+yes_job_clean <- clean_corpus(yes_job_corpus)
+yes_job_stemmed <- tm_map(yes_job_clean, stemDocument)
+yes_job_compl <- lapply(yes_job_stemmed, stemCompletion2, dictionary = yes_job_clean) %>% VectorSource() %>% Corpus()
+#word cloud
+yes_job_tdm <- TermDocumentMatrix(yes_job_compl)
+yes_job_tf_idf <- tidy(yes_job_tdm)  %>% left_join(.,mental_health_yes_job[,c(1,3,4)],by=c("document"="doc_id")) %>% 
+  bind_tf_idf(term, document, count) %>%
+  arrange(desc(tf_idf))
+set.seed(1000)
+wordcloud2(yes_job_tf_idf[, c(1,6)], color = yes_job_tf_idf$color_job, shape = "diamond")
+```
+
+<br /n>
+
+##### Wordcloud for Answer=No
+```{r wordcloud job no, message=FALSE, warning=FALSE}
+#answer = no
+#create corpus
+mental_health_no_job <- filter(mental_health, bringup_issue == "No")
+mental_health_no_job$doc_id <- as.character(c(1:nrow(mental_health_no_job)))
+mental_health_no_job <- mental_health_no_job[, c(68,38,66,63)]
+no_job_corpus <- DataframeSource(mental_health_no_job) %>% VCorpus(.)
+#clean 
+no_job_clean <- clean_corpus(no_job_corpus)
+no_job_stemmed <- tm_map(no_job_clean, stemDocument)
+no_job_compl <- lapply(no_job_stemmed, stemCompletion2, dictionary = no_job_clean) %>% VectorSource() %>% Corpus()
+#word cloud
+no_job_tdm <- TermDocumentMatrix(no_job_compl)
+no_job_tf_idf <- tidy(no_job_tdm)  %>% left_join(.,mental_health_no_job[,c(1,3,4)],by=c("document"="doc_id")) %>% 
+  bind_tf_idf(term, document, count) %>%
+  arrange(desc(tf_idf))
+set.seed(1000)
+wordcloud2(no_job_tf_idf[, c(1,6)], color = no_job_tf_idf$color_job, shape = "diamond")
+```
+
+<br /n>
+
+#### **Word Frequency for Each Answer**
+
+##### We visualize the top 5 most frequent words for each answer and analyze how the words differ by job type.
+
+```{r frequency job maybe, message=FALSE, warning=FALSE}
+#top 10 words in maybe
+df <- filter(maybe_job_tf_idf, !(term %in% c("someone","issues","work","etc","just","felt"))) %>% group_by(job_type, term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=5)
+b4 <- filter(maybe_job_tf_idf, !(term %in% c("someone","issues","work","etc","just","felt","issue"))) %>% group_by(job_type, term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=5) %>% 
+  ggplot(aes(reorder(term, frequency), frequency, fill=job_type)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  facet_wrap(~job_type, scales="free_x") +
+  scale_fill_brewer(palette = "Set2", direction=-1) +
+  guides(fill=FALSE) +
+  ggtitle("Answer = Maybe") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(), 
+        plot.title = element_text(face = "bold", color = "black", size = 10))
+b4
+```
+
+##### Similar to word frequency for maybe by company size, uncertain words like depends, discuss and potential are usually used by participants to show their attitudes. They also use stigma to express their worries about the issue. Besides, words like accommodation from developer indicate that it depends on whether they require accommodations. While the term comfortable from supporters shows that it depends on whether they feel comfortable with the interviewer. 
+
+
+```{r frequency job yes, message=FALSE, warning=FALSE}
+#top 10 words in yes
+
+b5 <- filter(yes_job_tf_idf, !(term %in% c("issues","work","just","felt","though","keep","front","can","time","table","part","looking","ahead","employers","either","aware","exactly","end","fair","even","cards"))) %>% group_by(job_type, term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=5) %>% 
+  ggplot(aes(reorder(term, frequency), frequency, fill=job_type)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  facet_wrap(~job_type, scales="free_x") +
+  scale_fill_brewer(palette = "Set2", direction=-1) +
+  guides(fill=FALSE) +
+  ggtitle("Answer = Yes") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(), 
+        plot.title = element_text(face = "bold", color = "black", size = 10))
+b5
+```
+
+##### Those who answer yes tend to use terms like impact, needed and good to show the importance of mentioning mental health issue. In addition, supporters and workers from other job types use performance to explain that they think work performance is more important than mental health issue.
+
+
+```{r frequency job no, message=FALSE, warning=FALSE}
+#top 10 words in no
+b6 <- filter(no_job_tf_idf, !(term %in% c("issues","work","etc","just","felt","issue"))) %>% group_by(job_type, term) %>% 
+  summarize("frequency"=sum(count)) %>% slice_max(frequency, n=5) %>% 
+  ggplot(aes(reorder(term, frequency), frequency, fill=job_type)) + 
+  geom_bar(stat = "identity") + coord_flip() + 
+  facet_wrap(~job_type, scales="free_x") +
+  scale_fill_brewer(palette = "Set2", direction=-1) +
+  guides(fill=FALSE) +
+  ggtitle("Answer = No") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(), 
+        plot.title = element_text(face = "bold", color = "black", size = 10))
+b6
+```
+
+##### Similar to word frequency for no by company size, participants who answered no tend to use negative words like stigma, don't and wouldn't to show their negative attitudes. Besides, supporters frequently use discrimination to explain why they wouldn't talk about mental health issue in interviews.
+
+<br /n>
+
+#### **Sentiment Analysis for Each Answer**
+
+```{r sentiment job, message=FALSE, warning=FALSE}
+#plot the relationship between sentiment and answer
+p2 <- ggplot(mental_health, aes(x = bringup_issue, y = sentiment)) + 
+  geom_boxplot(aes(fill=job_type))  + 
+  stat_summary(mapping=aes(group=bringup_issue),fun="mean",geom="point",shape=23,size=3,fill="white") + 
+  facet_wrap(~job_type) + 
+  scale_fill_manual(values = c("#8DA0CB","#FC8D62","#66C2A5")) +
+  labs(title = "Distribution of Sentiment Score by Answer and Job Type", y = "Sentiment Score") + 
+  theme(legend.position = 'none', 
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(vjust = 2),
+        panel.background = element_blank(), 
+        panel.grid.major = element_line(color = "gray50", size = 0.5),
+        panel.grid.major.x = element_blank(),
+        plot.title = element_text(face = "bold", color = "black", size = 12))
+ggplotly(p2 , tooltip = "sentiment")
+```
+
+##### In sum, respondents who answered maybe and no show a negative sentiment towards the question while those answering yes present a positive sentiment. Supporters get highest average sentiment score in each answer, followed by developers and then participants from other job types. 
 
 <br /n>
